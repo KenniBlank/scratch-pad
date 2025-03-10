@@ -6,7 +6,7 @@ all: compile
 compile:
 	gcc app.c -o app $(CFLAGS) $(LDFLAGS)
 	clear
-	./app;
+	./app
 
 	@echo -e "\nProgram Return Value: " $$?
 

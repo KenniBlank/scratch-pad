@@ -2,6 +2,7 @@
 #include <SDL2/SDL_events.h>
 #include <SDL2/SDL_keycode.h>
 #include <SDL2/SDL_mouse.h>
+#include <SDL2/SDL_pixels.h>
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_timer.h>
 #include <stdio.h>
@@ -16,21 +17,16 @@ Point* points = NULL;
 int pointCount = 0;
 int pointCapacity = 0;
 
-// Character Buffer:
-char* characters = NULL;
-int charCount = 0;
-int charCapacity = 0;
+bool DarkMode = false;
+SDL_Color text_color = {0, 0, 0, 255};
+SDL_Color background_color = {255, 255, 255, 255};
 
 /* Function Definition: */
 void swap(int *a, int *b);
 void setPixel(SDL_Renderer* renderer, int x, int y, Uint8 r, Uint8 g, Uint8 b, Uint8 a, float intensity);
 void better_line(SDL_Renderer* renderer, int x1, int y1, int x2, int y2);
 void addPoint(int x, int y, bool connect);
-void renderPoints(SDL_Renderer* renderer);
-
-void addCharacter(char *str) {
-
-}
+void ReRenderPoints(SDL_Renderer* renderer);
 
 int main() {
     // Initialize SDL
@@ -69,8 +65,9 @@ int main() {
     bool running = true;
     bool isDrawing = false;
 
-    // Clear to white
-    SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+    // Setup
+    SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND); // Blending mode enabled
+    SDL_SetRenderDrawColor(renderer, unpack_color(background_color)); // First look color
     SDL_RenderClear(renderer);
     SDL_RenderPresent(renderer);
 
@@ -83,14 +80,24 @@ int main() {
                     break;
 
                 case SDL_KEYDOWN:
-                    //  CTRL + C to clear the board
-                    if (event.key.keysym.sym == SDLK_c && event.key.keysym.mod & KMOD_LCTRL) {
-                        pointCount = 0; // Reset points
+                    // CTRL is super key
+                    if (event.key.keysym.mod & KMOD_LCTRL) {
+                        //  CTRL + C to clear the board
+                        if (event.key.keysym.sym == SDLK_c) {
+                            pointCount = 0; // Reset points
 
-                        // Clear board and render white Background
-                        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
-                        SDL_RenderClear(renderer);
-                        SDL_RenderPresent(renderer);
+                            // Clear board
+                            SDL_SetRenderDrawColor(renderer, unpack_color(background_color));
+                            SDL_RenderClear(renderer);
+                            SDL_RenderPresent(renderer);
+                        }
+
+                        if (event.key.keysym.sym == SDLK_d) {
+                            swap_color(&background_color, &text_color);
+                            DarkMode = !DarkMode;
+                            ReRenderPoints(renderer);
+                            SDL_RenderPresent(renderer);
+                        }
                     }
 
                     printf("Key pressed: %s\n", SDL_GetKeyName(event.key.keysym.sym));
@@ -112,7 +119,7 @@ int main() {
 
                 case SDL_MOUSEBUTTONUP:
                     if (event.button.button == SDL_BUTTON_LEFT) {
-                        renderPoints(renderer);
+                        ReRenderPoints(renderer);
                         isDrawing = false;
                         addPoint(event.motion.x, event.motion.y, isDrawing);
                     }
@@ -127,11 +134,11 @@ int main() {
         }
 
         if (isDrawing) {
-                renderPoints(renderer); // Redraw all stored points
-                SDL_RenderPresent(renderer);
+            ReRenderPoints(renderer); // Redraw all stored points
+            SDL_RenderPresent(renderer);
         }
 
-        SDL_Delay(1000/144); // 144 FPS
+        SDL_Delay(1000 / FPS); // 144 FPS
     }
 
     // Cleanup
@@ -154,6 +161,7 @@ void swap(int *a, int *b) {
 // Set pixel with intensity blending
 void setPixel(SDL_Renderer* renderer, int x, int y, Uint8 r, Uint8 g, Uint8 b, Uint8 a, float intensity) {
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
+
     SDL_SetRenderDrawColor(renderer, r, g, b, (Uint8)(a * intensity));
     SDL_RenderDrawPoint(renderer, x, y);
 }
@@ -185,11 +193,11 @@ void better_line(SDL_Renderer* renderer, int x1, int y1, int x2, int y2) {
     int ypxl1 = yend;
 
     if (steep) {
-        setPixel(renderer, ypxl1, xpxl1, 0, 0, 0, 255, (1 - (intery - floor(intery))) * xgap);
-        setPixel(renderer, ypxl1 + 1, xpxl1, 0, 0, 0, 255, (intery - floor(intery)) * xgap);
+        setPixel(renderer, ypxl1, xpxl1, unpack_color(text_color), (1 - (intery - floor(intery))) * xgap);
+        setPixel(renderer, ypxl1 + 1, xpxl1, unpack_color(text_color), (intery - floor(intery)) * xgap);
     } else {
-        setPixel(renderer, xpxl1, ypxl1, 0, 0, 0, 255, (1 - (intery - floor(intery))) * xgap);
-        setPixel(renderer, xpxl1, ypxl1 + 1, 0, 0, 0, 255, (intery - floor(intery)) * xgap);
+        setPixel(renderer, xpxl1, ypxl1, unpack_color(text_color), (1 - (intery - floor(intery))) * xgap);
+        setPixel(renderer, xpxl1, ypxl1 + 1, unpack_color(text_color), (intery - floor(intery)) * xgap);
     }
 
     intery += gradient;
@@ -200,11 +208,11 @@ void better_line(SDL_Renderer* renderer, int x1, int y1, int x2, int y2) {
         float f = intery - y;
 
         if (steep) {
-            setPixel(renderer, y, x, 0, 0, 0, 255, 1 - f);
-            setPixel(renderer, y + 1, x, 0, 0, 0, 255, f);
+            setPixel(renderer, y, x, unpack_color(text_color), 1 - f);
+            setPixel(renderer, y + 1, x, unpack_color(text_color), f);
         } else {
-            setPixel(renderer, x, y, 0, 0, 0, 255, 1 - f);
-            setPixel(renderer, x, y + 1, 0, 0, 0, 255, f);
+            setPixel(renderer, x, y, unpack_color(text_color), 1 - f);
+            setPixel(renderer, x, y + 1, unpack_color(text_color), f);
         }
         intery += gradient;
     }
@@ -228,13 +236,13 @@ void addPoint(int x, int y, bool connect) {
 }
 
 // Function to redraw all stored points
-void renderPoints(SDL_Renderer* renderer) {
+void ReRenderPoints(SDL_Renderer* renderer) {
         // Background Color
-        SDL_SetRenderDrawColor(renderer, 255, 255, 255, 255);
+        SDL_SetRenderDrawColor(renderer, unpack_color(background_color));
         SDL_RenderClear(renderer);
 
         // Draw Color
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+        SDL_SetRenderDrawColor(renderer, unpack_color(text_color));
         for (int i = 0; i < pointCount - 1; i++) {
                 if (points[i].connect && points[i + 1].connect) {
                     better_line(renderer, points[i].x, points[i].y, points[i + 1].x, points[i + 1].y);
