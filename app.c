@@ -1,3 +1,13 @@
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_events.h>
+#include <SDL2/SDL_keycode.h>
+#include <SDL2/SDL_mouse.h>
+#include <SDL2/SDL_render.h>
+#include <SDL2/SDL_timer.h>
+#include <stdio.h>
+#include <stdbool.h>
+#include <stdlib.h>
+
 #include "header.h"
 
 /* Global Variables */
@@ -6,12 +16,21 @@ Point* points = NULL;
 int pointCount = 0;
 int pointCapacity = 0;
 
+// Character Buffer:
+char* characters = NULL;
+int charCount = 0;
+int charCapacity = 0;
+
 /* Function Definition: */
 void swap(int *a, int *b);
 void setPixel(SDL_Renderer* renderer, int x, int y, Uint8 r, Uint8 g, Uint8 b, Uint8 a, float intensity);
 void better_line(SDL_Renderer* renderer, int x1, int y1, int x2, int y2);
 void addPoint(int x, int y, bool connect);
 void renderPoints(SDL_Renderer* renderer);
+
+void addCharacter(char *str) {
+
+}
 
 int main() {
     // Initialize SDL
@@ -22,12 +41,12 @@ int main() {
 
     // Create a window
     SDL_Window* window = SDL_CreateWindow(
-        "SDL2 Drawing with Points",
-        SDL_WINDOWPOS_CENTERED,
-        SDL_WINDOWPOS_CENTERED,
-        800,
-        700,
-        SDL_WINDOW_SHOWN
+      "SDL2 Drawing with Points",
+      SDL_WINDOWPOS_CENTERED,
+      SDL_WINDOWPOS_CENTERED,
+      WINDOW_WIDTH,
+      WINDOW_HEIGHT,
+      SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE
     );
 
     if (window == NULL) {
@@ -64,7 +83,8 @@ int main() {
                     break;
 
                 case SDL_KEYDOWN:
-                    if (event.key.keysym.sym == SDLK_c) {
+                    //  CTRL + C to clear the board
+                    if (event.key.keysym.sym == SDLK_c && event.key.keysym.mod & KMOD_LCTRL) {
                         pointCount = 0; // Reset points
 
                         // Clear board and render white Background
@@ -72,6 +92,7 @@ int main() {
                         SDL_RenderClear(renderer);
                         SDL_RenderPresent(renderer);
                     }
+
                     printf("Key pressed: %s\n", SDL_GetKeyName(event.key.keysym.sym));
                     break;
 
@@ -132,41 +153,51 @@ void swap(int *a, int *b) {
 
 // Set pixel with intensity blending
 void setPixel(SDL_Renderer* renderer, int x, int y, Uint8 r, Uint8 g, Uint8 b, Uint8 a, float intensity) {
-    // Enable blending for smooth lines
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-
     SDL_SetRenderDrawColor(renderer, r, g, b, (Uint8)(a * intensity));
     SDL_RenderDrawPoint(renderer, x, y);
 }
 
-// Wu’s Anti-Aliased Line Algorithm
+// Improved Wu’s Anti-Aliased Line Algorithm
 void better_line(SDL_Renderer* renderer, int x1, int y1, int x2, int y2) {
     int steep = abs(y2 - y1) > abs(x2 - x1);
 
-    // Swap coordinates if steep
     if (steep) {
         swap(&x1, &y1);
         swap(&x2, &y2);
     }
 
-    // Ensure left-to-right drawing
     if (x1 > x2) {
         swap(&x1, &x2);
         swap(&y1, &y2);
     }
 
-    // Compute gradient
     float dx = x2 - x1;
     float dy = y2 - y1;
     float gradient = (dx == 0.0) ? 1.0 : dy / dx;
+    float intery = y1 + gradient * (x1 - x1);
 
-    // Start interpolation at the first x-pixel
-    float intery = y1 + gradient * (x1 - x1); // (Simplifies to intery = y1)
+    // First endpoint
+    int xend = x1;
+    int yend = round(y1);
+    float xgap = 1 - (x1 + 0.5 - floor(x1 + 0.5));
+    int xpxl1 = xend;
+    int ypxl1 = yend;
 
-    // Draw anti-aliased line
-    for (int x = x1; x <= x2; x++) {
-        int y = (int)intery;
-        float f = intery - y; // Fractional part
+    if (steep) {
+        setPixel(renderer, ypxl1, xpxl1, 0, 0, 0, 255, (1 - (intery - floor(intery))) * xgap);
+        setPixel(renderer, ypxl1 + 1, xpxl1, 0, 0, 0, 255, (intery - floor(intery)) * xgap);
+    } else {
+        setPixel(renderer, xpxl1, ypxl1, 0, 0, 0, 255, (1 - (intery - floor(intery))) * xgap);
+        setPixel(renderer, xpxl1, ypxl1 + 1, 0, 0, 0, 255, (intery - floor(intery)) * xgap);
+    }
+
+    intery += gradient;
+
+    // Middle points
+    for (int x = xpxl1 + 1; x < x2; x++) {
+        int y = floor(intery);
+        float f = intery - y;
 
         if (steep) {
             setPixel(renderer, y, x, 0, 0, 0, 255, 1 - f);

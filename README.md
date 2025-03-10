@@ -1,3 +1,4 @@
-FXAA for anti-aliasing when application running because it is fastest.
+# Just a Place for me to make quick notes to self
 
-TODO: while storing, another better quality will be used.
+## TODO:
+- [ ] AntiAliasing for the lines

@@ -1,5 +1,5 @@
 CFLAGS = -Wall
-LDFLAGS = -lSDL2
+LDFLAGS = -lSDL2 -lSDL2_image -lm
 
 all: compile
 
@@ -9,4 +9,6 @@ compile:
 	./app;
 
 	@echo -e "\nProgram Return Value: " $$?
+
+clean:
 	@rm -f app
