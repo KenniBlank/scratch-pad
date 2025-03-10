@@ -9,6 +9,4 @@ compile:
 	./app;
 
 	@echo -e "\nProgram Return Value: " $$?
-
-clean:
-	rm -f app
+	@rm -f app
