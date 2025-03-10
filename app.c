@@ -5,9 +5,11 @@
 #include <SDL2/SDL_pixels.h>
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_timer.h>
+#include <SDL2/SDL_image.h>  // For saving to PNG
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <sys/stat.h>
 
 #include "header.h"
 
@@ -17,7 +19,7 @@ Point* points = NULL;
 int pointCount = 0;
 int pointCapacity = 0;
 
-bool DarkMode = false;
+bool DarkMode = true;
 SDL_Color text_color;
 SDL_Color background_color;
 
@@ -27,6 +29,7 @@ void better_line(SDL_Renderer* renderer, int x1, int y1, int x2, int y2);
 void addPoint(SDL_Renderer* renderer, int x, int y, bool connect);
 void RenderPoint(SDL_Renderer* renderer, Point p1, Point p2);
 void ReRenderPoints(SDL_Renderer* renderer);
+void SaveCurrentFrameToPng(SDL_Renderer *Renderer);
 
 int main() {
     // Initialize SDL
@@ -89,6 +92,7 @@ int main() {
                         if (event.key.keysym.sym == SDLK_c) {
                             pointCount = 0; // Reset points
 
+
                             // Clear board
                             SDL_SetRenderDrawColor(renderer, unpack_color(background_color));
                             SDL_RenderClear(renderer);
@@ -100,6 +104,11 @@ int main() {
                             DarkMode = !DarkMode;
                             ReRenderPoints(renderer);
                             SDL_RenderPresent(renderer);
+                        }
+
+                        if (event.key.keysym.sym == SDLK_s){
+                            SaveCurrentFrameToPng(renderer);
+                            printf("Image Saved...\n");
                         }
                     }
 
@@ -134,11 +143,9 @@ int main() {
                     break;
             }
         }
-
-        ReRenderPoints(renderer); // Redraw all stored points
-
+        ReRenderPoints(renderer);
         SDL_RenderPresent(renderer);
-        SDL_Delay(1000 / FPS); // 144 FPS
+        SDL_Delay(1000 / FPS);
     }
 
     // Cleanup
@@ -247,4 +254,59 @@ void ReRenderPoints(SDL_Renderer* renderer) {
         for (int i = 0; i < pointCount - 1; i++) {
                 RenderPoint(renderer, points[i], points[i + 1]);
         }
+}
+
+void SaveCurrentFrameToPng(SDL_Renderer* renderer) {
+    const char* folder = "images/";
+
+    // Ensure the folder exists
+    struct stat st = {0};
+    if (stat(folder, &st) == -1) {
+        mkdir(folder, 0700);
+    }
+
+    // Create surface
+    SDL_Surface *surface = SDL_CreateRGBSurface(0, WINDOW_WIDTH, WINDOW_HEIGHT, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
+    if (!surface) {
+        printf("Unable to create surface: %s\n", SDL_GetError());
+        return;
+    }
+
+    // Read pixels
+    if (SDL_RenderReadPixels(renderer, NULL, surface->format->format, surface->pixels, surface->pitch) < 0) {
+        printf("Unable to read pixels: %s\n", SDL_GetError());
+        SDL_FreeSurface(surface);
+        return;
+    }
+
+    // Get file count in the folder
+    char command[256];
+    snprintf(command, sizeof(command), "ls \"%s\" | wc -l", folder);
+
+    FILE *fp = popen(command, "r");
+    if (!fp) {
+        printf("Failed to run command\n");
+        SDL_FreeSurface(surface);
+        return;
+    }
+
+    int count = 0;
+    if (fscanf(fp, "%d", &count) != 1) {
+        printf("Failed to read file count\n");
+        pclose(fp);
+        SDL_FreeSurface(surface);
+        return;
+    }
+    pclose(fp);
+
+    // Filepath
+    char filename[256];
+    snprintf(filename, sizeof(filename), "%sraw_frame_%09d.png", folder, count);
+
+    // Save surface to PNG
+    if (IMG_SavePNG(surface, filename) != 0) {
+        printf("Unable to save frame as PNG: %s\n", IMG_GetError());
+    }
+
+    SDL_FreeSurface(surface);
 }
