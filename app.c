@@ -7,6 +7,7 @@
 #include <SDL2/SDL_surface.h>
 #include <SDL2/SDL_timer.h>
 #include <SDL2/SDL_image.h>  // For saving to PNG
+#include <stddef.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
@@ -263,22 +264,44 @@ void ReRenderPoints(SDL_Renderer* renderer) {
         }
 }
 
-void SaveAsImage(SDL_Renderer* renderer) {
-    SDL_Surface *surface;
-    const char* folder = "Images/";
+int image_name(char* folder, char* returnValue, size_t returnValueSize) {
+    if (!returnValue || returnValueSize == 0) return -1; // Error: Invalid buffer
 
-    // Ensure the folder exists
+    // Ensure folder Exists:
     struct stat st = {0};
     if (stat(folder, &st) == -1) {
         mkdir(folder, 0700);
     }
 
+    // Get file count in the folder
+    char command[256];
+    snprintf(command, sizeof(command), "ls \"%s\" | wc -l", folder);
+
+    FILE *fp = popen(command, "r");
+    if (!fp) {
+        printf("Failed to run command\n");
+        return 1;
+    }
+
+    int count = 0;
+    if (fscanf(fp, "%d", &count) != 1) {
+        printf("Failed to read file count\n");
+        pclose(fp);
+        return 1;
+    }
+    pclose(fp);
+
+    // Filepath
+    snprintf(returnValue, returnValueSize, "%s__image__%03d.png", folder, count);
+    return 0;
+}
+
+void SaveAsImage(SDL_Renderer* renderer) {
     int win_width, win_height;
     SDL_GetRendererOutputSize(renderer, &win_width, &win_height);
 
     // Create surface with current window dimensions
-    surface = SDL_CreateRGBSurface(0, win_width, win_height, 32,
-                                   0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
+    SDL_Surface *surface = SDL_CreateRGBSurface(0, win_width, win_height, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
     if (!surface) {
         printf("Unable to create surface: %s\n", SDL_GetError());
         return;
@@ -292,39 +315,15 @@ void SaveAsImage(SDL_Renderer* renderer) {
         return;
     }
 
-    // TODO: Fix this pixels
-    if (SDL_RenderReadPixels(renderer, NULL, surface->format->format,
-                             surface->pixels, surface->pitch) < 0) {
+    if (SDL_RenderReadPixels(renderer, NULL, surface->format->format, surface->pixels, surface->pitch) < 0) {
         printf("Unable to read pixels: %s\n", SDL_GetError());
         SDL_FreeSurface(surface);
         return;
     }
 
-    // Get file count in the folder
-    char command[256];
-    snprintf(command, sizeof(command), "ls \"%s\" | wc -l", folder);
-
-    FILE *fp = popen(command, "r");
-    if (!fp) {
-        printf("Failed to run command\n");
-        SDL_FreeSurface(surface);
-        surface = NULL;
-        return;
-    }
-
-    int count = 0;
-    if (fscanf(fp, "%d", &count) != 1) {
-        printf("Failed to read file count\n");
-        pclose(fp);
-        SDL_FreeSurface(surface);
-        surface = NULL;
-        return;
-    }
-    pclose(fp);
-
-    // Filepath
     char filename[256];
-    snprintf(filename, sizeof(filename), "%s__image__%03d.png", folder, count);
+    char* folder = "Images/";
+    image_name(folder, filename, sizeof(filename));
 
     // Save surface to PNG
     if (IMG_SavePNG(surface, filename) != 0) {
