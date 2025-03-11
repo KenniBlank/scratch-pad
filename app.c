@@ -4,11 +4,13 @@
 #include <SDL2/SDL_mouse.h>
 #include <SDL2/SDL_pixels.h>
 #include <SDL2/SDL_render.h>
+#include <SDL2/SDL_surface.h>
 #include <SDL2/SDL_timer.h>
 #include <SDL2/SDL_image.h>  // For saving to PNG
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 
 #include "header.h"
@@ -30,6 +32,12 @@ void addPoint(SDL_Renderer* renderer, int x, int y, bool connect);
 void RenderPoint(SDL_Renderer* renderer, Point p1, Point p2);
 void ReRenderPoints(SDL_Renderer* renderer);
 void SaveCurrentFrameToPng(SDL_Renderer *Renderer);
+
+bool rand_bool(void) {
+	if (rand() > RAND_MAX / 2) return true;
+
+	return false;
+}
 
 int main() {
     // Initialize SDL
@@ -147,7 +155,6 @@ int main() {
         SDL_RenderPresent(renderer);
         SDL_Delay(1000 / FPS);
     }
-
     // Cleanup
     free(points); // Free the dynamically allocated memory
     SDL_DestroyRenderer(renderer);
@@ -257,7 +264,8 @@ void ReRenderPoints(SDL_Renderer* renderer) {
 }
 
 void SaveCurrentFrameToPng(SDL_Renderer* renderer) {
-    const char* folder = "images/";
+    SDL_Surface *surface;
+    const char* folder = "Images/";
 
     // Ensure the folder exists
     struct stat st = {0};
@@ -266,14 +274,24 @@ void SaveCurrentFrameToPng(SDL_Renderer* renderer) {
     }
 
     // Create surface
-    SDL_Surface *surface = SDL_CreateRGBSurface(0, WINDOW_WIDTH, WINDOW_HEIGHT, 32, 0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
+    surface = SDL_CreateRGBSurface(0, WINDOW_WIDTH, WINDOW_HEIGHT, 32,
+                                   0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
     if (!surface) {
         printf("Unable to create surface: %s\n", SDL_GetError());
         return;
     }
 
-    // Read pixels
-    if (SDL_RenderReadPixels(renderer, NULL, surface->format->format, surface->pixels, surface->pitch) < 0) {
+    // Check surface->pixels before using it
+    if (!surface->pixels) {
+        printf("Surface pixels are NULL after creation\n");
+        SDL_FreeSurface(surface);
+        surface = NULL;
+        return;
+    }
+
+    // TODO: Fix this pixels
+    if (SDL_RenderReadPixels(renderer, NULL, surface->format->format,
+                             surface->pixels, surface->pitch) < 0) {
         printf("Unable to read pixels: %s\n", SDL_GetError());
         SDL_FreeSurface(surface);
         return;
@@ -287,6 +305,7 @@ void SaveCurrentFrameToPng(SDL_Renderer* renderer) {
     if (!fp) {
         printf("Failed to run command\n");
         SDL_FreeSurface(surface);
+        surface = NULL;
         return;
     }
 
@@ -295,13 +314,14 @@ void SaveCurrentFrameToPng(SDL_Renderer* renderer) {
         printf("Failed to read file count\n");
         pclose(fp);
         SDL_FreeSurface(surface);
+        surface = NULL;
         return;
     }
     pclose(fp);
 
     // Filepath
     char filename[256];
-    snprintf(filename, sizeof(filename), "%sraw_frame_%09d.png", folder, count);
+    snprintf(filename, sizeof(filename), "%simage_%03d.png", folder, count);
 
     // Save surface to PNG
     if (IMG_SavePNG(surface, filename) != 0) {

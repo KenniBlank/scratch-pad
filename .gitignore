@@ -1,0 +1,4 @@
+app
+images/
+insipirations/
+#cc -Wall temp.c -o temp -lSDL2
