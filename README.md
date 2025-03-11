@@ -10,3 +10,9 @@ To use: Just open "Scratch Pad". It is an executable
 - [ ] Optimised: remove rerendering so much
 - [ ] Varied stroke width: + to increase, - to decrease
 - [ ] Buffer to store user keystrokes
+
+## Examples:
+
+- Hello World:
+
+    ![Alt text](Images/Hello_world.png)
