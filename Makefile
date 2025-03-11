@@ -12,4 +12,4 @@ compile:
 
 clean:
 	@rm -f app
-	@rm Images/*.png
+	@rm Images/__image__*.png

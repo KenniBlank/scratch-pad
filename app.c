@@ -31,7 +31,7 @@ void better_line(SDL_Renderer* renderer, int x1, int y1, int x2, int y2);
 void addPoint(SDL_Renderer* renderer, int x, int y, bool connect);
 void RenderPoint(SDL_Renderer* renderer, Point p1, Point p2);
 void ReRenderPoints(SDL_Renderer* renderer);
-void SaveCurrentFrameToPng(SDL_Renderer *Renderer);
+void SaveAsImage(SDL_Renderer* renderer);
 
 bool rand_bool(void) {
 	if (rand() > RAND_MAX / 2) return true;
@@ -115,7 +115,7 @@ int main() {
                         }
 
                         if (event.key.keysym.sym == SDLK_s){
-                            SaveCurrentFrameToPng(renderer);
+                            SaveAsImage(renderer);
                             printf("Image Saved...\n");
                         }
                     }
@@ -263,7 +263,7 @@ void ReRenderPoints(SDL_Renderer* renderer) {
         }
 }
 
-void SaveCurrentFrameToPng(SDL_Renderer* renderer) {
+void SaveAsImage(SDL_Renderer* renderer) {
     SDL_Surface *surface;
     const char* folder = "Images/";
 
@@ -273,8 +273,11 @@ void SaveCurrentFrameToPng(SDL_Renderer* renderer) {
         mkdir(folder, 0700);
     }
 
-    // Create surface
-    surface = SDL_CreateRGBSurface(0, WINDOW_WIDTH, WINDOW_HEIGHT, 32,
+    int win_width, win_height;
+    SDL_GetRendererOutputSize(renderer, &win_width, &win_height);
+
+    // Create surface with current window dimensions
+    surface = SDL_CreateRGBSurface(0, win_width, win_height, 32,
                                    0x00FF0000, 0x0000FF00, 0x000000FF, 0xFF000000);
     if (!surface) {
         printf("Unable to create surface: %s\n", SDL_GetError());
@@ -321,7 +324,7 @@ void SaveCurrentFrameToPng(SDL_Renderer* renderer) {
 
     // Filepath
     char filename[256];
-    snprintf(filename, sizeof(filename), "%simage_%03d.png", folder, count);
+    snprintf(filename, sizeof(filename), "%s__image__%03d.png", folder, count);
 
     // Save surface to PNG
     if (IMG_SavePNG(surface, filename) != 0) {
