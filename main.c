@@ -20,8 +20,8 @@
 #include "__struct.h"
 
 void setPixel(SDL_Renderer* renderer, int x, int y, Uint8 r, Uint8 g, Uint8 b, Uint8 a, float intensity);
-void better_line(SDL_Renderer* renderer, int x1, int y1, int x2, int y2);
-void addPoint(SDL_Renderer* renderer, int x, int y, bool connect);
+void better_line(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, int thickness);
+void addPoint(SDL_Renderer* renderer, int x, int y, int line_thickness, bool connect);
 void RenderPoint(SDL_Renderer* renderer, Point p1, Point p2);
 void ReRenderPoints(SDL_Renderer* renderer);
 
@@ -33,13 +33,13 @@ Point* points = NULL;
 int pointCount = 0;
 int pointCapacity = 0;
 
+// Colors:
 bool DarkMode = true;
 SDL_Color text_color;
 SDL_Color background_color;
 
 bool rand_bool(void) {
 	if (rand() > RAND_MAX / 2) return true;
-
 	return false;
 }
 
@@ -86,8 +86,10 @@ int main() {
     SDL_RenderClear(renderer);
     SDL_RenderPresent(renderer);
 
-    text_color = DarkMode? (SDL_Color) {255, 255, 255, 255}: (SDL_Color) {0, 0, 0, 255};
-    background_color = DarkMode? (SDL_Color) {0, 0, 0, 255}: (SDL_Color) {255, 255, 255, 255};
+    text_color = DarkMode? (SDL_Color) {255, 255, 255, 255}: (SDL_Color) {15, 20, 25, 255};
+    background_color = DarkMode? (SDL_Color) {15, 20, 25, 255}: (SDL_Color) {255, 255, 255, 255};
+
+    int line_thickness = 3;
 
     while (running) {
         // Handle events
@@ -122,6 +124,15 @@ int main() {
                         }
                     }
 
+                    if (event.key.keysym.sym == SDLK_i) {
+                        line_thickness += 1;
+                        printf("++\n");
+                    }
+                    if (event.key.keysym.sym == SDLK_o) {
+                        line_thickness -= 1;
+                        printf("--\n");
+                    }
+
                     printf("Key pressed: %s\n", SDL_GetKeyName(event.key.keysym.sym));
                     break;
 
@@ -135,20 +146,20 @@ int main() {
                 case SDL_MOUSEBUTTONDOWN:
                     if (event.button.button == SDL_BUTTON_LEFT) {
                         isDrawing = true;
-                        addPoint(renderer, event.button.x, event.button.y, isDrawing);
+                        addPoint(renderer, event.button.x, event.button.y, line_thickness, isDrawing);
                     }
                     break;
 
                 case SDL_MOUSEBUTTONUP:
                     if (event.button.button == SDL_BUTTON_LEFT) {
                         isDrawing = false;
-                        addPoint(renderer, event.button.x, event.button.y, isDrawing);
+                        addPoint(renderer, event.button.x, event.button.y, line_thickness, isDrawing);
                     }
                     break;
 
                 case SDL_MOUSEMOTION:
                     if (isDrawing) {
-                        addPoint(renderer, event.motion.x, event.motion.y, isDrawing); // Store the new point
+                        addPoint(renderer, event.motion.x, event.motion.y, line_thickness, isDrawing); // Store the new point
                     }
                     break;
             }
@@ -175,7 +186,7 @@ void setPixel(SDL_Renderer* renderer, int x, int y, Uint8 r, Uint8 g, Uint8 b, U
 }
 
 // Improved Wu’s Anti-Aliased Line Algorithm
-void better_line(SDL_Renderer* renderer, int x1, int y1, int x2, int y2) {
+void better_line(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, int thickness) {
     int steep = abs(y2 - y1) > abs(x2 - x1);
 
     if (steep) {
@@ -191,43 +202,66 @@ void better_line(SDL_Renderer* renderer, int x1, int y1, int x2, int y2) {
     float dx = x2 - x1;
     float dy = y2 - y1;
     float gradient = (dx == 0.0) ? 1.0 : dy / dx;
-    float intery = y1 + gradient * (x1 - x1);
 
-    // First endpoint
-    int xend = x1;
-    int yend = round(y1);
-    float xgap = 1 - (x1 + 0.5 - floor(x1 + 0.5));
-    int xpxl1 = xend;
-    int ypxl1 = yend;
+    // Calculate the perpendicular slope
+    float perpendicular_gradient = (gradient == 0.0) ? 1.0 : -1.0 / gradient;
 
-    if (steep) {
-        setPixel(renderer, ypxl1, xpxl1, unpack_color(text_color), (1 - (intery - floor(intery))) * xgap);
-        setPixel(renderer, ypxl1 + 1, xpxl1, unpack_color(text_color), (intery - floor(intery)) * xgap);
-    } else {
-        setPixel(renderer, xpxl1, ypxl1, unpack_color(text_color), (1 - (intery - floor(intery))) * xgap);
-        setPixel(renderer, xpxl1, ypxl1 + 1, unpack_color(text_color), (intery - floor(intery)) * xgap);
-    }
+    // Calculate the offset for thickness
+    float thickness_offset = (thickness - 1) / 2.0;
 
-    intery += gradient;
+    // Draw multiple lines to create thickness
+    for (int i = -thickness_offset; i <= thickness_offset; i++) {
+        float offset_x = i * cos(atan(perpendicular_gradient));
+        float offset_y = i * sin(atan(perpendicular_gradient));
 
-    // Middle points
-    for (int x = xpxl1 + 1; x < x2; x++) {
-        int y = floor(intery);
-        float f = intery - y;
+        // Adjust the starting and ending points for the current parallel line
+        int adjusted_x1 = x1 + offset_x;
+        int adjusted_y1 = y1 + offset_y;
+        int adjusted_x2 = x2 + offset_x;
+        int adjusted_y2 = y2 + offset_y;
+
+        // Recalculate intermediate values for the adjusted line
+        float adjusted_dx = adjusted_x2 - adjusted_x1;
+        float adjusted_dy = adjusted_y2 - adjusted_y1;
+        float adjusted_gradient = (adjusted_dx == 0.0) ? 1.0 : adjusted_dy / adjusted_dx;
+        float intery = adjusted_y1 + adjusted_gradient * (adjusted_x1 - adjusted_x1);
+
+        // First endpoint
+        int xend = adjusted_x1;
+        int yend = round(adjusted_y1);
+        float xgap = 1 - (adjusted_x1 + 0.5 - floor(adjusted_x1 + 0.5));
+        int xpxl1 = xend;
+        int ypxl1 = yend;
 
         if (steep) {
-            setPixel(renderer, y, x, unpack_color(text_color), 1 - f);
-            setPixel(renderer, y + 1, x, unpack_color(text_color), f);
+            setPixel(renderer, ypxl1, xpxl1, unpack_color(text_color), (1 - (intery - floor(intery))) * xgap);
+            setPixel(renderer, ypxl1 + 1, xpxl1, unpack_color(text_color), (intery - floor(intery)) * xgap);
         } else {
-            setPixel(renderer, x, y, unpack_color(text_color), 1 - f);
-            setPixel(renderer, x, y + 1, unpack_color(text_color), f);
+            setPixel(renderer, xpxl1, ypxl1, unpack_color(text_color), (1 - (intery - floor(intery))) * xgap);
+            setPixel(renderer, xpxl1, ypxl1 + 1, unpack_color(text_color), (intery - floor(intery)) * xgap);
         }
-        intery += gradient;
+
+        intery += adjusted_gradient;
+
+        // Middle points
+        for (int x = xpxl1 + 1; x < adjusted_x2; x++) {
+            int y = floor(intery);
+            float f = intery - y;
+
+            if (steep) {
+                setPixel(renderer, y, x, unpack_color(text_color), 1 - f);
+                setPixel(renderer, y + 1, x, unpack_color(text_color), f);
+            } else {
+                setPixel(renderer, x, y, unpack_color(text_color), 1 - f);
+                setPixel(renderer, x, y + 1, unpack_color(text_color), f);
+            }
+            intery += adjusted_gradient;
+        }
     }
 }
 
 // Function to add a point to the array
-void addPoint(SDL_Renderer* renderer, int x, int y, bool connect) {
+void addPoint(SDL_Renderer* renderer, int x, int y, int line_thickness, bool connect) {
     if (pointCount >= pointCapacity) {
         // Resize the array if needed
         pointCapacity = pointCapacity == 0 ? 1 : pointCapacity * 2;
@@ -242,13 +276,14 @@ void addPoint(SDL_Renderer* renderer, int x, int y, bool connect) {
     points[pointCount].x = x;
     points[pointCount].y = y;
     points[pointCount].connect = connect;
+    points[pointCount].line_thickness = line_thickness;
     pointCount++;
 }
 
 void RenderPoint(SDL_Renderer* renderer, Point p1, Point p2) {
     if (p1.connect && p2.connect) {
         SDL_SetRenderDrawColor(renderer, unpack_color(text_color));
-        better_line(renderer, p1.x, p1.y, p2.x, p2.y);
+        better_line(renderer, p1.x, p1.y, p2.x, p2.y, (p1.line_thickness + p1.line_thickness) / 2);
     }
 }
 

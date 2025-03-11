@@ -12,6 +12,9 @@ compile:
 	./$(App)
 	@echo -e "\nProgram Return Value: " $$?
 
+move:
+	mv ./$(App) ~/
+
 clean:
 	@rm -f $(App)
 	@rm Images/__image__*.png
