@@ -124,11 +124,11 @@ int main() {
                         }
                     }
 
-                    if (event.key.keysym.sym == SDLK_i) {
+                    if (event.key.keysym.sym == SDLK_KP_PLUS) {
                         line_thickness += 1;
                         printf("++\n");
                     }
-                    if (event.key.keysym.sym == SDLK_o) {
+                    if (event.key.keysym.sym == SDLK_KP_MINUS) {
                         line_thickness -= 1;
                         printf("--\n");
                     }
