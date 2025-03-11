@@ -2,14 +2,16 @@ CFLAGS = -Wall
 DEBUG = -g
 LIBS = -lSDL2 -lSDL2_image -lm
 
+CFiles = main.c
+App = Scratch\ Pad
+
 all: compile
 
 compile:
-	gcc app.c -o app $(CFLAGS) $(LIBS) $(DEBUG)
-	./app
-
+	gcc $(CFiles) -o $(App) $(CFLAGS) $(LIBS) $(DEBUG)
+	./$(App)
 	@echo -e "\nProgram Return Value: " $$?
 
 clean:
-	@rm -f app
+	@rm -f $(App)
 	@rm Images/__image__*.png

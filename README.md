@@ -5,4 +5,4 @@
 - [ ] Interpo
 - [ ] Bezier Curve
 - [ ] Optimised: remove rerendering so much
-- [ ] Save as png: TODO fix crash on double save
+- [X] Save as png: TODO fix crash on double save
