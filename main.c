@@ -180,7 +180,6 @@ int main() {
 // Set pixel with intensity blending
 void setPixel(SDL_Renderer* renderer, int x, int y, Uint8 r, Uint8 g, Uint8 b, Uint8 a, float intensity) {
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
-
     SDL_SetRenderDrawColor(renderer, r, g, b, (Uint8)(a * intensity));
     SDL_RenderDrawPoint(renderer, x, y);
 }
@@ -273,11 +272,19 @@ void addPoint(SDL_Renderer* renderer, int x, int y, int line_thickness, bool con
         }
         points = temp;
     }
-    points[pointCount].x = x;
-    points[pointCount].y = y;
-    points[pointCount].connect = connect;
-    points[pointCount].line_thickness = line_thickness;
-    pointCount++;
+
+    bool add_point;
+
+    if (!connect) add_point = true;
+    else add_point = pow(pow(points[pointCount - 1].x - x, 2) + pow(points[pointCount - 1].y - y, 2), 0.5) > POINTS_THRESHOLD ? true: false;
+
+    if (add_point){
+        points[pointCount].x = x;
+        points[pointCount].y = y;
+        points[pointCount].connect = connect;
+        points[pointCount].line_thickness = line_thickness;
+        pointCount++;
+    }
 }
 
 void RenderPoint(SDL_Renderer* renderer, Point p1, Point p2) {

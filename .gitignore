@@ -1,4 +1,3 @@
 app
-images/
+Images/__image__*.png
 insipirations/
-#cc -Wall temp.c -o temp -lSDL2

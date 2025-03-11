@@ -2,7 +2,7 @@
 
 ## TODO:
 - [X] AntiAliasing for the lines
-- [ ] Interpo
+- [ ] Delete duplicate points or points within threshold
 - [ ] Bezier Curve
 - [ ] Optimised: remove rerendering so much
 - [X] Save as png: TODO fix crash on double save
