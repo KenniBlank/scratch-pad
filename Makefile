@@ -15,7 +15,8 @@ run: compile
 	@echo -e "\nProgram Return Value: " $$?
 
 move: compile
-	mv ./$(App) ~/
+	@mv ./$(App) ~/
+	@echo "Successfull!"
 
 clean:
 	@rm -f $(App)

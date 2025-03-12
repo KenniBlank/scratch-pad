@@ -91,6 +91,9 @@ int main(void) {
 
     int line_thickness = 3;
 
+    SDL_Cursor* cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_CROSSHAIR);
+    SDL_SetCursor(cursor);
+
     while (running) {
         // Handle events
         while (SDL_PollEvent(&event)) {
@@ -169,6 +172,7 @@ int main(void) {
         SDL_Delay(1000 / FPS);
     }
     // Cleanup
+    SDL_FreeCursor(cursor);
     free(points); // Free the dynamically allocated memory
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
@@ -275,8 +279,7 @@ void addPoint(SDL_Renderer* renderer, int x, int y, int line_thickness, bool con
 
     bool add_point;
 
-    if (!connect) add_point = true;
-    else add_point = pow(pow(points[pointCount - 1].x - x, 2) + pow(points[pointCount - 1].y - y, 2), 0.5) > POINTS_THRESHOLD ? true: false;
+    add_point = !connect ? true: pow(pow(points[pointCount - 1].x - x, 2) + pow(points[pointCount - 1].y - y, 2), 0.5) > POINTS_THRESHOLD ? true: false;
 
     if (add_point){
         points[pointCount].x = x;
