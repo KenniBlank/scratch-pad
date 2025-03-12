@@ -43,7 +43,7 @@ bool rand_bool(void) {
 	return false;
 }
 
-int main() {
+int main(void) {
     // Initialize SDL
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
@@ -365,8 +365,7 @@ void SaveAsImage(SDL_Renderer* renderer) {
     }
 
     char filename[256];
-    char* folder = "/home/kenni/Experimental/scratch-pad/Images/";
-    image_name(folder, filename, sizeof(filename));
+    image_name(FOLDER, filename, sizeof(filename));
 
     // Save surface to PNG
     if (IMG_SavePNG(surface, filename) != 0) {

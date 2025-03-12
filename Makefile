@@ -9,10 +9,12 @@ all: compile
 
 compile:
 	gcc $(CFiles) -o $(App) $(CFLAGS) $(LIBS) $(DEBUG)
+
+run: compile
 	./$(App)
 	@echo -e "\nProgram Return Value: " $$?
 
-move:
+move: compile
 	mv ./$(App) ~/
 
 clean:
