@@ -1,6 +1,6 @@
 CFLAGS = -Wall
 DEBUG = -g
-LIBS = -lSDL2 -lSDL2_image -lm
+LIBS = -lSDL2 -lSDL2_image -lm -lSDL2_ttf
 
 CFiles = main.c
 App = Scratch\ Pad

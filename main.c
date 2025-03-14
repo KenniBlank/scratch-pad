@@ -7,7 +7,9 @@
 #include <SDL2/SDL_surface.h>
 #include <SDL2/SDL_timer.h>
 #include <SDL2/SDL_image.h>
+#include <SDL2/SDL_ttf.h>
 
+#include <SDL2/SDL_video.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -15,6 +17,7 @@
 
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 
 #include "__macros.h"
 #include "__struct.h"
@@ -27,25 +30,28 @@ void ReRenderPoints(SDL_Renderer* renderer);
 
 void SaveAsImage(SDL_Renderer* renderer);
 
+bool rand_bool(void);
+void add_user_input(char key_value);
+void RenderText(SDL_Renderer *renderer, TTF_Font *font, const char *text, int window_width, int window_height);
+
 /* Global Variables */
 // Dynamic array to store points
 Point* points = NULL;
 int pointCount = 0;
 int pointCapacity = 0;
 
+char* user_inputs = NULL;  // Dynamic string to store user input characters
+int user_inputs_count = 0; // Current length (number of characters stored, excluding the null terminator)
+int user_inputs_capacity = 0; // Capacity of the user_inputs array
+
 // Colors:
 bool DarkMode = true;
 SDL_Color text_color;
 SDL_Color background_color;
 
-bool rand_bool(void) {
-	if (rand() > RAND_MAX / 2) return true;
-	return false;
-}
-
 int main(void) {
     // Initialize SDL
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+    if (SDL_Init(SDL_INIT_VIDEO) < 0 || TTF_Init() < 0) {
         printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
         return 1;
     }
@@ -94,7 +100,20 @@ int main(void) {
     SDL_Cursor* cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_CROSSHAIR);
     SDL_SetCursor(cursor);
 
+    TTF_Font *font = NULL;
+    font = TTF_OpenFont("fonts/ComingSoon.ttf", FONT_SIZE); // Load the font with the fixed size
+    if (!font) {
+        printf("Font loading failed: %s\n", TTF_GetError());
+        return 1;
+    }
+
+    SDL_StartTextInput(); // Enable text input
+
+    int window_width = WINDOW_WIDTH, window_height = WINDOW_HEIGHT;
+
     while (running) {
+        SDL_GetWindowSize(window, &window_width, &window_height);
+
         // Handle events
         while (SDL_PollEvent(&event)) {
             switch (event.type) {
@@ -102,47 +121,55 @@ int main(void) {
                     running = false;
                     break;
 
+                case SDL_TEXTINPUT:
+                    print("%s", event.text.text);
+                    add_user_input(event.text.text[0]);
+                    break;
+
                 case SDL_KEYDOWN:
                     // CTRL is super key
                     if (event.key.keysym.mod & KMOD_LCTRL) {
-                        //  CTRL + C to clear the board
-                        if (event.key.keysym.sym == SDLK_c) {
-                            pointCount = 0; // Reset points
-                            // Clear board
-                            SDL_SetRenderDrawColor(renderer, unpack_color(background_color));
-                            SDL_RenderClear(renderer);
-                            SDL_RenderPresent(renderer);
-                        }
+                        switch (event.key.keysym.sym) {
+                            case SDLK_c:
+                                pointCount = 0; // Reset points
+                                // Clear board
+                                SDL_SetRenderDrawColor(renderer, unpack_color(background_color));
+                                SDL_RenderClear(renderer);
+                                SDL_RenderPresent(renderer);
+                                break;
 
-                        if (event.key.keysym.sym == SDLK_d) {
-                            swap(&text_color, &background_color);
-                            DarkMode = !DarkMode;
-                            ReRenderPoints(renderer);
-                            SDL_RenderPresent(renderer);
-                        }
+                            case SDLK_d:
+                                swap(&text_color, &background_color);
+                                DarkMode = !DarkMode;
+                                ReRenderPoints(renderer);
+                                SDL_RenderPresent(renderer);
+                                break;
 
-                        if (event.key.keysym.sym == SDLK_s){
-                            SaveAsImage(renderer);
-                            printf("Image Saved...\n");
+                            case SDLK_s:
+                                SaveAsImage(renderer);
+                                printf("Image Saved...\n");
                         }
                     }
 
-                    if (event.key.keysym.sym == SDLK_KP_PLUS) {
-                        line_thickness += 1;
-                        printf("++\n");
-                    }
-                    if (event.key.keysym.sym == SDLK_KP_MINUS) {
-                        line_thickness -= 1;
-                        printf("--\n");
-                    }
+                    switch (event.key.keysym.sym) {
+                        case SDLK_KP_PLUS:
+                            line_thickness += 1;
+                            printf("++\n");
+                            break;
 
-                    printf("Key pressed: %s\n", SDL_GetKeyName(event.key.keysym.sym));
-                    break;
+                        case SDLK_KP_MINUS:
+                            line_thickness -= 1;
+                            printf("--\n");
+                            break;
 
-                case SDL_KEYUP:
-                    printf("Key released: %s\n", SDL_GetKeyName(event.key.keysym.sym));
-                    if (event.key.keysym.sym == SDLK_ESCAPE) {
-                        running = false;
+                        case SDLK_ESCAPE:
+                            running = false;
+                            break;
+
+                        case SDLK_RETURN:
+                            print("\n");
+                            add_user_input('\n');
+                            break;
                     }
                     break;
 
@@ -168,12 +195,21 @@ int main(void) {
             }
         }
         ReRenderPoints(renderer);
+        RenderText(renderer, font, user_inputs, window_width, window_height);
         SDL_RenderPresent(renderer);
         SDL_Delay(1000 / FPS);
     }
     // Cleanup
     SDL_FreeCursor(cursor);
+
+    if (user_inputs)
+        printf("\n%s\n", user_inputs);
     free(points); // Free the dynamically allocated memory
+    free(user_inputs);
+
+    SDL_StopTextInput(); // Disable text input
+    TTF_CloseFont(font);
+
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
@@ -376,4 +412,53 @@ void SaveAsImage(SDL_Renderer* renderer) {
     }
 
     SDL_FreeSurface(surface);
+}
+
+bool rand_bool(void) {
+	if (rand() > RAND_MAX / 2) return true;
+	return false;
+}
+
+void add_user_input(char key_value) {
+    if (user_inputs_count + 1 >= user_inputs_capacity) {
+        // +1 is for the null terminator
+        user_inputs_capacity = (user_inputs_capacity == 0) ? 2 : user_inputs_capacity * 2;
+        char* temp = realloc(user_inputs, user_inputs_capacity * sizeof(char));
+        if (!temp) {
+            fprintf(stderr, "Memory allocation failed!\n");
+            free(user_inputs);
+            exit(EXIT_FAILURE);
+        }
+        user_inputs = temp;
+    }
+    // Append the character
+    user_inputs[user_inputs_count] = key_value;
+    user_inputs_count++;
+    // Null terminate the string
+    user_inputs[user_inputs_count] = '\0';
+}
+
+void RenderText(SDL_Renderer *renderer, TTF_Font *font, const char *text, int window_width, int window_height) {
+    SDL_Color textColor = {255, 255, 255, 255}; // White text
+
+    const int PADDING = 15; // Padding for positioning
+    int max_width = window_width - 2 * PADDING; // Max width for wrapping
+
+    SDL_Surface *textSurface = TTF_RenderText_Blended_Wrapped(font, text, textColor, max_width);
+    if (!textSurface) return;
+
+    SDL_Texture *textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+    int textWidth = textSurface->w;
+    int textHeight = textSurface->h;
+    SDL_FreeSurface(textSurface);
+
+    SDL_Rect textRect = {
+        PADDING,  // Left-aligned with padding
+        PADDING, // Top-aligned with padding
+        textWidth,
+        textHeight
+    };
+
+    SDL_RenderCopy(renderer, textTexture, NULL, &textRect);
+    SDL_DestroyTexture(textTexture);
 }

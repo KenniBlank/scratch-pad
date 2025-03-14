@@ -1,10 +1,22 @@
-// #define FOLDER "/home/kenni/Experimental/scratch-pad/Images/"
-#define FOLDER "/home/kenni/Pictures/"
+#define FOLDER "Images/"
+#define FontLocation "fonts/ComingSoon.ttf"
+
+// During Compilation for use:
+// #define FontLocation "/home/kenni/Experimental/scratch-pad/fonts/ComingSoon.ttf"
+// #define FOLDER "/home/kenni/Pictures/"
 
 #define WINDOW_WIDTH 700
 #define WINDOW_HEIGHT 600
+
+// TODO: Render in this so that resizing doesn't affect
+#define RENDER_WINDOW_WIDTH 3840
+#define RENDER_WINDOW_HEIGHT 2160
+
 #define FPS 144
-#define POINTS_THRESHOLD 1 // In pixel: basically how much gap should be between points minimum
+#define FONT_SIZE 16
+#define POINTS_THRESHOLD 1 // In pixel: basically how much gap minimum should be between points minimum
+
+#define print(fmt, ...) do { printf(fmt, ##__VA_ARGS__); fflush(stdout); } while(0)
 
 #define unpack_color(color) (color.r), (color.g), (color.b), (color.a)
 #define swap(a, b) do { \
