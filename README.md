@@ -6,6 +6,8 @@ To use: Just open "Scratch Pad". It is an executable
 - [X] AntiAliasing for the lines
 - [X] Delete duplicate points or points within threshold
 - [X] Save frame as png
+- [X] Text Rendering
+- [X] Text Backtrack
 - [ ] Bezier Curve
 - [ ] Optimised: remove rerendering so much
 - [ ] Varied stroke width: + to increase, - to decrease

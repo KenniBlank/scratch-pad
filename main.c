@@ -213,9 +213,7 @@ int main(void) {
     // Cleanup
     SDL_FreeCursor(cursor);
 
-    if (user_inputs)
-        printf("\n%s\n", user_inputs);
-    free(points); // Free the dynamically allocated memory
+    free(points);
     free(user_inputs);
 
     SDL_StopTextInput(); // Disable text input
@@ -450,12 +448,10 @@ void add_user_input(char key_value) {
 }
 
 void RenderText(SDL_Renderer *renderer, TTF_Font *font, const char *text, int window_width, int window_height) {
-    SDL_Color textColor = {255, 255, 255, 255}; // White text
-
     const int PADDING = 15; // Padding for positioning
     int max_width = window_width - 2 * PADDING; // Max width for wrapping
 
-    SDL_Surface *textSurface = TTF_RenderText_Blended_Wrapped(font, text, textColor, max_width);
+    SDL_Surface *textSurface = TTF_RenderText_Blended_Wrapped(font, text, text_color, max_width);
     if (!textSurface) return;
 
     SDL_Texture *textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
