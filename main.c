@@ -167,8 +167,19 @@ int main(void) {
                             break;
 
                         case SDLK_RETURN:
-                            print("\n");
                             add_user_input('\n');
+                            break;
+
+                        case SDLK_BACKSPACE:
+                            user_inputs_count -= 1;
+                            if (user_inputs_count < 0) {
+                                user_inputs_count = 0;
+                            }
+                            user_inputs[user_inputs_count] = '\0';
+                            break;
+
+                        case SDLK_TAB:
+                            add_user_input('\t');
                             break;
                     }
                     break;
