@@ -22,19 +22,21 @@
 #include "__macros.h"
 #include "__struct.h"
 
+void addPoint(SDL_Renderer* renderer, int x, int y, int line_thickness, bool connect);
+void add_user_input(char key_value);
+void pop_user_input();
+void RenderPoint(SDL_Renderer* renderer, Point p1, Point p2);
+void RenderText(SDL_Renderer *renderer, TTF_Font *font, const char *text, int window_width, int window_height);
+
+bool blinker_toggle_state();
+void ReRenderAllPoints(SDL_Renderer* renderer);
+
+// Helper Functions:
 void setPixel(SDL_Renderer* renderer, int x, int y, Uint8 r, Uint8 g, Uint8 b, Uint8 a, float intensity);
 void better_line(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, int thickness);
-void addPoint(SDL_Renderer* renderer, int x, int y, int line_thickness, bool connect);
-void RenderPoint(SDL_Renderer* renderer, Point p1, Point p2);
-void ReRenderPoints(SDL_Renderer* renderer);
-
 void SaveAsImage(SDL_Renderer* renderer);
-
-bool rand_bool(void);
-void add_user_input(char key_value);
-
 char* replace(const char* str, const char* old_substr, const char* new_substr);
-void RenderText(SDL_Renderer *renderer, TTF_Font *font, const char *text, int window_width, int window_height);
+char* append_string(char *s1, char *s2);
 
 /* Global Variables */
 // Dynamic array to store points
@@ -51,6 +53,27 @@ bool DarkMode = true;
 SDL_Color text_color;
 SDL_Color background_color;
 
+void pop_user_input() {
+    user_inputs_count -= 1;
+    if (user_inputs_count < 0) {
+        user_inputs_count = 0;
+    }
+    user_inputs[user_inputs_count] = '\0';
+}
+
+bool blinker_toggle_state() {
+    static bool state = false;
+    static Uint32 last_toggle = 0;
+    Uint32 now = SDL_GetTicks(); // Get time in milliseconds
+
+    if (now - last_toggle >= 700) { // If 700 milli second has passed
+        state = !state;  // Toggle state
+        last_toggle = now;
+    }
+
+    return state;
+}
+
 int main(void) {
     // Initialize SDL
     if (SDL_Init(SDL_INIT_VIDEO) < 0 || TTF_Init() < 0) {
@@ -65,7 +88,7 @@ int main(void) {
       SDL_WINDOWPOS_CENTERED,
       WINDOW_WIDTH,
       WINDOW_HEIGHT,
-      SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE
+      SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_BORDERLESS
     );
 
     if (window == NULL) {
@@ -142,7 +165,7 @@ int main(void) {
                             case SDLK_d:
                                 swap(&text_color, &background_color);
                                 DarkMode = !DarkMode;
-                                ReRenderPoints(renderer);
+                                ReRenderAllPoints(renderer);
                                 SDL_RenderPresent(renderer);
                                 break;
 
@@ -172,11 +195,7 @@ int main(void) {
                             break;
 
                         case SDLK_BACKSPACE:
-                            user_inputs_count -= 1;
-                            if (user_inputs_count < 0) {
-                                user_inputs_count = 0;
-                            }
-                            user_inputs[user_inputs_count] = '\0';
+                            pop_user_input();
                             break;
 
                         case SDLK_TAB:
@@ -206,8 +225,17 @@ int main(void) {
                     break;
             }
         }
-        ReRenderPoints(renderer);
-        RenderText(renderer, font, user_inputs, window_width, window_height);
+
+        ReRenderAllPoints(renderer);
+
+        if (blinker_toggle_state()) {
+            add_user_input('_');
+            RenderText(renderer, font, user_inputs, window_width, window_height);
+            pop_user_input();
+        } else {
+            RenderText(renderer, font, user_inputs, window_width, window_height);
+        }
+
         SDL_RenderPresent(renderer);
         SDL_Delay(1000 / FPS);
     }
@@ -344,7 +372,7 @@ void RenderPoint(SDL_Renderer* renderer, Point p1, Point p2) {
 }
 
 // Function to redraw all stored points
-void ReRenderPoints(SDL_Renderer* renderer) {
+void ReRenderAllPoints(SDL_Renderer* renderer) {
         // Background Color
         SDL_SetRenderDrawColor(renderer, unpack_color(background_color));
         SDL_RenderClear(renderer);
@@ -424,11 +452,6 @@ void SaveAsImage(SDL_Renderer* renderer) {
     SDL_FreeSurface(surface);
 }
 
-bool rand_bool(void) {
-	if (rand() > RAND_MAX / 2) return true;
-	return false;
-}
-
 void add_user_input(char key_value) {
     if (user_inputs_count + 1 >= user_inputs_capacity) {
         // +1 is for the null terminator
@@ -502,17 +525,38 @@ char* replace(const char* str, const char* old_substr, const char* new_substr) {
     return result;
 }
 
+char* append_string(char *s1, char *s2) {
+    int s1_len = strlen(s1);
+    int s2_len = strlen(s2);
+
+    // Allocate Memory
+    char* result = malloc((s1_len + s2_len + 1) * sizeof(char));
+    if (!result) return NULL;
+
+    // Copy s1
+    for (int i = 0; i < s1_len; i++) {
+        result[i] = s1[i];
+    }
+
+    for (int j = 0; j < s2_len; j++) {
+        result[s1_len + j] = s2[j];
+    }
+
+    result[s1_len + s2_len] = '\0';
+    free(s1);
+    return result;
+}
+
 void RenderText(SDL_Renderer *renderer, TTF_Font *font, const char *text, int window_width, int window_height) {
     const int PADDING = 15; // Padding for positioning
     int max_width = window_width - 2 * PADDING; // Max width for wrapping
 
-    char *betterText = replace(text, "\t", "    ");
-    if (betterText == NULL) {
-        print("Error");
-        exit(1);
+    char *formattedTxt = replace(text, "\t", "    ");
+    if (!formattedTxt) {
+        return;
     }
 
-    SDL_Surface *textSurface = TTF_RenderText_Blended_Wrapped(font, betterText, text_color, max_width);
+    SDL_Surface *textSurface = TTF_RenderText_Blended_Wrapped(font, formattedTxt, text_color, max_width);
     if (!textSurface) return;
 
     SDL_Texture *textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
@@ -529,4 +573,5 @@ void RenderText(SDL_Renderer *renderer, TTF_Font *font, const char *text, int wi
 
     SDL_RenderCopy(renderer, textTexture, NULL, &textRect);
     SDL_DestroyTexture(textTexture);
+    free(formattedTxt);
 }
