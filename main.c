@@ -32,6 +32,8 @@ void SaveAsImage(SDL_Renderer* renderer);
 
 bool rand_bool(void);
 void add_user_input(char key_value);
+
+char* replace(const char* str, const char* old_substr, const char* new_substr);
 void RenderText(SDL_Renderer *renderer, TTF_Font *font, const char *text, int window_width, int window_height);
 
 /* Global Variables */
@@ -101,7 +103,7 @@ int main(void) {
     SDL_SetCursor(cursor);
 
     TTF_Font *font = NULL;
-    font = TTF_OpenFont("fonts/ComingSoon.ttf", FONT_SIZE); // Load the font with the fixed size
+    font = TTF_OpenFont(FontLocation, FONT_SIZE); // Load the font with the fixed size
     if (!font) {
         printf("Font loading failed: %s\n", TTF_GetError());
         return 1;
@@ -122,7 +124,6 @@ int main(void) {
                     break;
 
                 case SDL_TEXTINPUT:
-                    print("%s", event.text.text);
                     add_user_input(event.text.text[0]);
                     break;
 
@@ -447,11 +448,71 @@ void add_user_input(char key_value) {
     user_inputs[user_inputs_count] = '\0';
 }
 
+// Function to replace all occurrences of a substring with another substring
+char* replace(const char* str, const char* old_substr, const char* new_substr) {
+    // Check for NULL pointers
+    if (str == NULL || old_substr == NULL || new_substr == NULL) {
+        return "";
+    }
+
+    // Calculate lengths of the input strings
+    size_t str_len = strlen(str);
+    size_t old_substr_len = strlen(old_substr);
+    size_t new_substr_len = strlen(new_substr);
+
+    // Count the number of occurrences of old_substr in str
+    size_t count = 0;
+    const char* tmp = str;
+    while ((tmp = strstr(tmp, old_substr))) {
+        count++;
+        tmp += old_substr_len;
+    }
+
+    // Calculate the length of the new string after replacement
+    size_t new_len = str_len + count * (new_substr_len - old_substr_len);
+
+    // Allocate memory for the new string
+    char* result = (char*)malloc(new_len + 1); // +1 for the null terminator
+    if (result == NULL) {
+        return NULL; // Memory allocation failed
+    }
+
+    // Perform the replacement
+    char* current_pos = result;
+    const char* start = str;
+    while (count--) {
+        const char* found = strstr(start, old_substr);
+        size_t segment_len = found - start;
+
+        // Copy the segment before the found substring
+        memcpy(current_pos, start, segment_len);
+        current_pos += segment_len;
+
+        // Copy the new substring
+        memcpy(current_pos, new_substr, new_substr_len);
+        current_pos += new_substr_len;
+
+        // Move the start pointer past the old substring
+        start = found + old_substr_len;
+    }
+
+    // Copy the remaining part of the string
+    strcpy(current_pos, start);
+
+    return result;
+}
+
 void RenderText(SDL_Renderer *renderer, TTF_Font *font, const char *text, int window_width, int window_height) {
     const int PADDING = 15; // Padding for positioning
     int max_width = window_width - 2 * PADDING; // Max width for wrapping
 
-    SDL_Surface *textSurface = TTF_RenderText_Blended_Wrapped(font, text, text_color, max_width);
+    char *betterText = replace(text, "\t", "    ");
+    if (betterText == NULL) {
+        print("Error");
+        exit(1);
+    }
+
+    SDL_Surface *textSurface = TTF_RenderText_Blended_Wrapped(font, betterText, text_color, max_width);
     if (!textSurface) return;
 
     SDL_Texture *textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
