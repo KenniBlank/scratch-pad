@@ -23,9 +23,9 @@
 #include "__struct.h"
 
 void addPoint(SDL_Renderer* renderer, int x, int y, int line_thickness, bool connect);
+void RenderPoint(SDL_Renderer* renderer, Point p1, Point p2);
 void add_user_input(char key_value);
 void pop_user_input();
-void RenderPoint(SDL_Renderer* renderer, Point p1, Point p2);
 void RenderText(SDL_Renderer *renderer, TTF_Font *font, const char *text, int window_width, int window_height);
 
 bool blinker_toggle_state();
@@ -52,27 +52,6 @@ int user_inputs_capacity = 0; // Capacity of the user_inputs array
 bool DarkMode = true;
 SDL_Color text_color;
 SDL_Color background_color;
-
-void pop_user_input() {
-    user_inputs_count -= 1;
-    if (user_inputs_count < 0) {
-        user_inputs_count = 0;
-    }
-    user_inputs[user_inputs_count] = '\0';
-}
-
-bool blinker_toggle_state() {
-    static bool state = false;
-    static Uint32 last_toggle = 0;
-    Uint32 now = SDL_GetTicks(); // Get time in milliseconds
-
-    if (now - last_toggle >= 700) { // If 700 milli second has passed
-        state = !state;  // Toggle state
-        last_toggle = now;
-    }
-
-    return state;
-}
 
 int main(void) {
     // Initialize SDL
@@ -106,11 +85,6 @@ int main(void) {
         return 1;
     }
 
-    // Main loop
-    SDL_Event event;
-    bool running = true;
-    bool isDrawing = false;
-
     // Setup
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND); // Blending mode enabled
     SDL_SetRenderDrawColor(renderer, unpack_color(background_color)); // First look color
@@ -136,6 +110,14 @@ int main(void) {
 
     int window_width = WINDOW_WIDTH, window_height = WINDOW_HEIGHT;
 
+    float delay_in_ms = 1000.0 / FPS;
+
+    // Main loop
+    SDL_Event event;
+    bool running = true;
+    bool isDrawing = false;
+    bool eraserMode = false;
+
     while (running) {
         SDL_GetWindowSize(window, &window_width, &window_height);
 
@@ -155,7 +137,13 @@ int main(void) {
                     if (event.key.keysym.mod & KMOD_LCTRL) {
                         switch (event.key.keysym.sym) {
                             case SDLK_c:
-                                pointCount = 0; // Reset points
+                                // Reset
+                                pointCount = 0;
+                                pointCapacity = 0;
+                                if (points) {
+                                    free(points);
+                                    points = NULL;
+                                }
                                 // Clear board
                                 SDL_SetRenderDrawColor(renderer, unpack_color(background_color));
                                 SDL_RenderClear(renderer);
@@ -172,6 +160,11 @@ int main(void) {
                             case SDLK_s:
                                 SaveAsImage(renderer);
                                 printf("Image Saved...\n");
+                                break;
+
+                            case SDLK_e:
+                                eraserMode = !eraserMode;
+                                break;
                         }
                     }
 
@@ -205,22 +198,34 @@ int main(void) {
                     break;
 
                 case SDL_MOUSEBUTTONDOWN:
-                    if (event.button.button == SDL_BUTTON_LEFT) {
-                        isDrawing = true;
-                        addPoint(renderer, event.button.x, event.button.y, line_thickness, isDrawing);
+                    if (eraserMode) {
+
+                    } else {
+                        if (event.button.button == SDL_BUTTON_LEFT) {
+                            isDrawing = true;
+                            addPoint(renderer, event.button.x, event.button.y, line_thickness, isDrawing);
+                        }
                     }
                     break;
 
                 case SDL_MOUSEBUTTONUP:
-                    if (event.button.button == SDL_BUTTON_LEFT) {
-                        isDrawing = false;
-                        addPoint(renderer, event.button.x, event.button.y, line_thickness, isDrawing);
+                    if (eraserMode) {
+
+                    } else {
+                        if (event.button.button == SDL_BUTTON_LEFT) {
+                            isDrawing = false;
+                            addPoint(renderer, event.button.x, event.button.y, line_thickness, isDrawing);
+                        }
                     }
                     break;
 
                 case SDL_MOUSEMOTION:
-                    if (isDrawing) {
-                        addPoint(renderer, event.motion.x, event.motion.y, line_thickness, isDrawing); // Store the new point
+                    if (eraserMode) {
+
+                    } else {
+                        if (isDrawing) {
+                            addPoint(renderer, event.motion.x, event.motion.y, line_thickness, isDrawing); // Store the new point
+                        }
                     }
                     break;
             }
@@ -237,7 +242,7 @@ int main(void) {
         }
 
         SDL_RenderPresent(renderer);
-        SDL_Delay(1000 / FPS);
+        SDL_Delay(delay_in_ms);
     }
     // Cleanup
     SDL_FreeCursor(cursor);
@@ -574,4 +579,25 @@ void RenderText(SDL_Renderer *renderer, TTF_Font *font, const char *text, int wi
     SDL_RenderCopy(renderer, textTexture, NULL, &textRect);
     SDL_DestroyTexture(textTexture);
     free(formattedTxt);
+}
+
+void pop_user_input() {
+    user_inputs_count -= 1;
+    if (user_inputs_count < 0) {
+        user_inputs_count = 0;
+    }
+    user_inputs[user_inputs_count] = '\0';
+}
+
+bool blinker_toggle_state() {
+    static bool state = false;
+    static Uint32 last_toggle = 0;
+    Uint32 now = SDL_GetTicks(); // Get time in milliseconds
+
+    if (now - last_toggle >= 700) { // If 700 milli second has passed
+        state = !state;  // Toggle state
+        last_toggle = now;
+    }
+
+    return state;
 }
