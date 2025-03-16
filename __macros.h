@@ -1,9 +1,10 @@
-#define FOLDER "Images/"
-#define FontLocation "fonts/ComingSoon.ttf"
-
-// During Compilation for use:
-// #define FontLocation "/home/kenni/Experimental/scratch-pad/fonts/ComingSoon.ttf"
-// #define FOLDER "/home/kenni/Pictures/"
+#ifdef RELEASE
+    #define FontLocation "/home/kenni/Experimental/scratch-pad/fonts/ComingSoon_bold.ttf"
+    #define FOLDER "/home/kenni/Pictures/"
+#else
+    #define FontLocation "fonts/ComingSoon_bold.ttf"
+    #define FOLDER "Images/"
+#endif
 
 #define WINDOW_WIDTH 700
 #define WINDOW_HEIGHT 600
@@ -12,15 +13,20 @@
 #define RENDER_WINDOW_WIDTH 3840
 #define RENDER_WINDOW_HEIGHT 2160
 
-#define FPS 144
+#define FPS 144.0
 #define FONT_SIZE 16
 #define POINTS_THRESHOLD 1 // In pixel: basically how much gap minimum should be between points minimum
 
-#define print(fmt, ...) do { printf(fmt, ##__VA_ARGS__); fflush(stdout); } while(0)
+#define print(fmt, ...) \
+    do { \
+        printf(fmt, ##__VA_ARGS__); \
+        fflush(stdout); \
+    } while(0)
 
 #define unpack_color(color) (color.r), (color.g), (color.b), (color.a)
-#define swap(a, b) do { \
-    typeof(*a) temp = *a; \
-    *a = *b; \
-    *b = temp; \
-} while (0)
+#define swap(a, b) \
+    do { \
+        typeof(*a) temp = *a; \
+        *a = *b; \
+        *b = temp; \
+    } while (0)

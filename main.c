@@ -1,19 +1,24 @@
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_events.h>
-#include <SDL2/SDL_keycode.h>
+#include <SDL2/SDL_stdinc.h>
+#include <SDL2/SDL_ttf.h>
 #include <SDL2/SDL_mouse.h>
+#include <SDL2/SDL_timer.h>
+#include <SDL2/SDL_image.h>
+#include <SDL2/SDL_video.h>
+#include <SDL2/SDL_events.h>
 #include <SDL2/SDL_pixels.h>
 #include <SDL2/SDL_render.h>
 #include <SDL2/SDL_surface.h>
-#include <SDL2/SDL_timer.h>
-#include <SDL2/SDL_image.h>
-#include <SDL2/SDL_ttf.h>
+#include <SDL2/SDL_keycode.h>
 
-#include <SDL2/SDL_video.h>
+// Open GL
+#include <GL/glew.h>
+// TODO: for rendering svgs
+
 #include <stdio.h>
-#include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 #include <string.h>
 #include <sys/stat.h>
@@ -22,14 +27,15 @@
 #include "__macros.h"
 #include "__struct.h"
 
-void addPoint(SDL_Renderer* renderer, int x, int y, int line_thickness, bool connect);
+void addPoint(int x, int y, int line_thickness, bool connect);
 void RenderPoint(SDL_Renderer* renderer, Point p1, Point p2);
+void ReRenderAllPoints(SDL_Renderer* renderer);
+
 void add_user_input(char key_value);
 void pop_user_input();
-void RenderText(SDL_Renderer *renderer, TTF_Font *font, const char *text, int window_width, int window_height);
+void RenderText(SDL_Renderer *renderer, TTF_Font *font, const char *text, int window_width);
 
 bool blinker_toggle_state();
-void ReRenderAllPoints(SDL_Renderer* renderer);
 
 // Helper Functions:
 void setPixel(SDL_Renderer* renderer, int x, int y, Uint8 r, Uint8 g, Uint8 b, Uint8 a, float intensity);
@@ -41,15 +47,14 @@ char* append_string(char *s1, char *s2);
 /* Global Variables */
 // Dynamic array to store points
 Point* points = NULL;
-int pointCount = 0;
-int pointCapacity = 0;
+size_t pointCount = 0;
+size_t pointCapacity = 0;
 
-char* user_inputs = NULL;  // Dynamic string to store user input characters
-int user_inputs_count = 0; // Current length (number of characters stored, excluding the null terminator)
-int user_inputs_capacity = 0; // Capacity of the user_inputs array
+char* usr_inputs = NULL;  // Dynamic string to store user input characters
+size_t usr_inputs_len = 0; // Current length (number of characters stored, excluding the null terminator)
+size_t usr_inputs_capacity = 0; // Capacity of the usr_inputs array
 
 // Colors:
-bool DarkMode = true;
 SDL_Color text_color;
 SDL_Color background_color;
 
@@ -91,11 +96,6 @@ int main(void) {
     SDL_RenderClear(renderer);
     SDL_RenderPresent(renderer);
 
-    text_color = DarkMode? (SDL_Color) {255, 255, 255, 255}: (SDL_Color) {15, 20, 25, 255};
-    background_color = DarkMode? (SDL_Color) {15, 20, 25, 255}: (SDL_Color) {255, 255, 255, 255};
-
-    int line_thickness = 3;
-
     SDL_Cursor* cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_CROSSHAIR);
     SDL_SetCursor(cursor);
 
@@ -108,15 +108,19 @@ int main(void) {
 
     SDL_StartTextInput(); // Enable text input
 
-    int window_width = WINDOW_WIDTH, window_height = WINDOW_HEIGHT;
-
-    float delay_in_ms = 1000.0 / FPS;
-
     // Main loop
     SDL_Event event;
+
+    // Essential Variables definition
     bool running = true;
     bool isDrawing = false;
     bool eraserMode = false;
+    bool DarkMode = false;
+    int line_thickness = 3;
+    int window_width = WINDOW_WIDTH, window_height = WINDOW_HEIGHT;
+    text_color = DarkMode? (SDL_Color) {255, 255, 255, 255}: (SDL_Color) {15, 20, 25, 255};
+    background_color = DarkMode? (SDL_Color) {15, 20, 25, 255}: (SDL_Color) {255, 255, 255, 255};
+    Uint32 delay_in_ms = (Uint32)(1000.0 / FPS);
 
     while (running) {
         SDL_GetWindowSize(window, &window_width, &window_height);
@@ -203,7 +207,7 @@ int main(void) {
                     } else {
                         if (event.button.button == SDL_BUTTON_LEFT) {
                             isDrawing = true;
-                            addPoint(renderer, event.button.x, event.button.y, line_thickness, isDrawing);
+                            addPoint(event.button.x, event.button.y, line_thickness, isDrawing);
                         }
                     }
                     break;
@@ -214,7 +218,7 @@ int main(void) {
                     } else {
                         if (event.button.button == SDL_BUTTON_LEFT) {
                             isDrawing = false;
-                            addPoint(renderer, event.button.x, event.button.y, line_thickness, isDrawing);
+                            addPoint(event.button.x, event.button.y, line_thickness, isDrawing);
                         }
                     }
                     break;
@@ -224,7 +228,7 @@ int main(void) {
 
                     } else {
                         if (isDrawing) {
-                            addPoint(renderer, event.motion.x, event.motion.y, line_thickness, isDrawing); // Store the new point
+                            addPoint(event.motion.x, event.motion.y, line_thickness, isDrawing); // Store the new point
                         }
                     }
                     break;
@@ -235,10 +239,10 @@ int main(void) {
 
         if (blinker_toggle_state()) {
             add_user_input('_');
-            RenderText(renderer, font, user_inputs, window_width, window_height);
+            RenderText(renderer, font, usr_inputs, window_width);
             pop_user_input();
         } else {
-            RenderText(renderer, font, user_inputs, window_width, window_height);
+            RenderText(renderer, font, usr_inputs, window_width);
         }
 
         SDL_RenderPresent(renderer);
@@ -248,7 +252,7 @@ int main(void) {
     SDL_FreeCursor(cursor);
 
     free(points);
-    free(user_inputs);
+    free(usr_inputs);
 
     SDL_StopTextInput(); // Disable text input
     TTF_CloseFont(font);
@@ -281,54 +285,54 @@ void better_line(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, int thi
         swap(&y1, &y2);
     }
 
-    float dx = x2 - x1;
-    float dy = y2 - y1;
-    float gradient = (dx == 0.0) ? 1.0 : dy / dx;
+    float dx = (float) (x2 - x1);
+    float dy = (float) (y2 - y1);
+    float gradient = (dx == 0.0) ? 1.0f : (float)(dy / dx);
 
     // Calculate the perpendicular slope
-    float perpendicular_gradient = (gradient == 0.0) ? 1.0 : -1.0 / gradient;
+    float perpendicular_gradient = (gradient == 0.0) ? 1.0f : (float)(-1.0 / gradient);
 
     // Calculate the offset for thickness
-    float thickness_offset = (thickness - 1) / 2.0;
+    int thickness_offset = (thickness - 1) / 2;  // Cast to int for iteration
 
     // Draw multiple lines to create thickness
     for (int i = -thickness_offset; i <= thickness_offset; i++) {
-        float offset_x = i * cos(atan(perpendicular_gradient));
-        float offset_y = i * sin(atan(perpendicular_gradient));
+        float offset_x = (float) (i * cos(atan(perpendicular_gradient)));
+        float offset_y = (float) (i * sin(atan(perpendicular_gradient)));
 
         // Adjust the starting and ending points for the current parallel line
-        int adjusted_x1 = x1 + offset_x;
-        int adjusted_y1 = y1 + offset_y;
-        int adjusted_x2 = x2 + offset_x;
-        int adjusted_y2 = y2 + offset_y;
+        float adjusted_x1 = (float) x1 + offset_x;
+        float adjusted_y1 = (float) y1 + offset_y;
+        float adjusted_x2 = (float) x2 + offset_x;
+        float adjusted_y2 = (float) y2 + offset_y;
 
         // Recalculate intermediate values for the adjusted line
         float adjusted_dx = adjusted_x2 - adjusted_x1;
         float adjusted_dy = adjusted_y2 - adjusted_y1;
-        float adjusted_gradient = (adjusted_dx == 0.0) ? 1.0 : adjusted_dy / adjusted_dx;
-        float intery = adjusted_y1 + adjusted_gradient * (adjusted_x1 - adjusted_x1);
+        float adjusted_gradient = (adjusted_dx == 0.0) ? 1.0f : (float)(adjusted_dy / adjusted_dx);
+        float intery = adjusted_y1;  // This simplifies to adjusted_y1
 
         // First endpoint
-        int xend = adjusted_x1;
-        int yend = round(adjusted_y1);
-        float xgap = 1 - (adjusted_x1 + 0.5 - floor(adjusted_x1 + 0.5));
+        int xend = (int) adjusted_x1;
+        int yend = (int) round(adjusted_y1);
+        float xgap = 1 - (float)(adjusted_x1 + 0.5 - floor(adjusted_x1 + 0.5));
         int xpxl1 = xend;
         int ypxl1 = yend;
 
         if (steep) {
-            setPixel(renderer, ypxl1, xpxl1, unpack_color(text_color), (1 - (intery - floor(intery))) * xgap);
-            setPixel(renderer, ypxl1 + 1, xpxl1, unpack_color(text_color), (intery - floor(intery)) * xgap);
+            setPixel(renderer, ypxl1, xpxl1, unpack_color(text_color), (float) (1 - (intery - floor(intery))) * xgap);
+            setPixel(renderer, ypxl1 + 1, xpxl1, unpack_color(text_color), (float) (intery - floor(intery)) * xgap);
         } else {
-            setPixel(renderer, xpxl1, ypxl1, unpack_color(text_color), (1 - (intery - floor(intery))) * xgap);
-            setPixel(renderer, xpxl1, ypxl1 + 1, unpack_color(text_color), (intery - floor(intery)) * xgap);
+            setPixel(renderer, xpxl1, ypxl1, unpack_color(text_color), (float)(1 - (intery - floor(intery))) * xgap);
+            setPixel(renderer, xpxl1, ypxl1 + 1, unpack_color(text_color), (float) (intery - floor(intery)) * xgap);
         }
 
         intery += adjusted_gradient;
 
         // Middle points
         for (int x = xpxl1 + 1; x < adjusted_x2; x++) {
-            int y = floor(intery);
-            float f = intery - y;
+            int y = (int)(floor(intery));
+            float f = intery - (float)(y);
 
             if (steep) {
                 setPixel(renderer, y, x, unpack_color(text_color), 1 - f);
@@ -343,7 +347,7 @@ void better_line(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, int thi
 }
 
 // Function to add a point to the array
-void addPoint(SDL_Renderer* renderer, int x, int y, int line_thickness, bool connect) {
+void addPoint(int x, int y, int line_thickness, bool connect) {
     if (pointCount >= pointCapacity) {
         // Resize the array if needed
         pointCapacity = pointCapacity == 0 ? 1 : pointCapacity * 2;
@@ -384,8 +388,10 @@ void ReRenderAllPoints(SDL_Renderer* renderer) {
 
         // Draw Color
         SDL_SetRenderDrawColor(renderer, unpack_color(text_color));
-        for (int i = 0; i < pointCount - 1; i++) {
-                RenderPoint(renderer, points[i], points[i + 1]);
+        if (pointCount != 0) {
+            for (size_t i = 0; i < pointCount - 1; i++) {
+                    RenderPoint(renderer, points[i], points[i + 1]);
+            }
         }
 }
 
@@ -458,22 +464,22 @@ void SaveAsImage(SDL_Renderer* renderer) {
 }
 
 void add_user_input(char key_value) {
-    if (user_inputs_count + 1 >= user_inputs_capacity) {
+    if ((size_t)(usr_inputs_len + 1) >= usr_inputs_capacity) {
         // +1 is for the null terminator
-        user_inputs_capacity = (user_inputs_capacity == 0) ? 2 : user_inputs_capacity * 2;
-        char* temp = realloc(user_inputs, user_inputs_capacity * sizeof(char));
+        usr_inputs_capacity = (usr_inputs_capacity == 0) ? 2 : usr_inputs_capacity * 2;
+        char* temp = realloc(usr_inputs, usr_inputs_capacity * sizeof(char));
         if (!temp) {
             fprintf(stderr, "Memory allocation failed!\n");
-            free(user_inputs);
+            free(usr_inputs);
             exit(EXIT_FAILURE);
         }
-        user_inputs = temp;
+        usr_inputs = temp;
     }
     // Append the character
-    user_inputs[user_inputs_count] = key_value;
-    user_inputs_count++;
+    usr_inputs[usr_inputs_len] = key_value;
+    usr_inputs_len++;
     // Null terminate the string
-    user_inputs[user_inputs_count] = '\0';
+    usr_inputs[usr_inputs_len] = '\0';
 }
 
 // Function to replace all occurrences of a substring with another substring
@@ -510,7 +516,7 @@ char* replace(const char* str, const char* old_substr, const char* new_substr) {
     const char* start = str;
     while (count--) {
         const char* found = strstr(start, old_substr);
-        size_t segment_len = found - start;
+        size_t segment_len = (found >= start) ? (size_t)(found - start) : 0;
 
         // Copy the segment before the found substring
         memcpy(current_pos, start, segment_len);
@@ -531,19 +537,19 @@ char* replace(const char* str, const char* old_substr, const char* new_substr) {
 }
 
 char* append_string(char *s1, char *s2) {
-    int s1_len = strlen(s1);
-    int s2_len = strlen(s2);
+    size_t s1_len = strlen(s1);
+    size_t s2_len = strlen(s2);
 
     // Allocate Memory
     char* result = malloc((s1_len + s2_len + 1) * sizeof(char));
     if (!result) return NULL;
 
     // Copy s1
-    for (int i = 0; i < s1_len; i++) {
+    for (size_t i = 0; i < s1_len; i++) {
         result[i] = s1[i];
     }
 
-    for (int j = 0; j < s2_len; j++) {
+    for (size_t j = 0; j < s2_len; j++) {
         result[s1_len + j] = s2[j];
     }
 
@@ -552,12 +558,14 @@ char* append_string(char *s1, char *s2) {
     return result;
 }
 
-void RenderText(SDL_Renderer *renderer, TTF_Font *font, const char *text, int window_width, int window_height) {
+void RenderText(SDL_Renderer *renderer, TTF_Font *font, const char *text, int window_width) {
     const int PADDING = 15; // Padding for positioning
-    int max_width = window_width - 2 * PADDING; // Max width for wrapping
+    int max_width_temp = window_width - 2 * PADDING;
+    Uint32 max_width = max_width_temp > 0 ? (Uint32)max_width_temp : 0;
 
-    char *formattedTxt = replace(text, "\t", "    ");
+    char *formattedTxt = replace(replace(text, "\t", "    "), " ", "  ");
     if (!formattedTxt) {
+        print("Couldn't Render text");
         return;
     }
 
@@ -582,11 +590,10 @@ void RenderText(SDL_Renderer *renderer, TTF_Font *font, const char *text, int wi
 }
 
 void pop_user_input() {
-    user_inputs_count -= 1;
-    if (user_inputs_count < 0) {
-        user_inputs_count = 0;
+    if (usr_inputs_len != 0) {
+        usr_inputs_len -= 1;
     }
-    user_inputs[user_inputs_count] = '\0';
+    usr_inputs[usr_inputs_len] = '\0';
 }
 
 bool blinker_toggle_state() {
