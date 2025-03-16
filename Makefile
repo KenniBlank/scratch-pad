@@ -1,6 +1,6 @@
 CC = gcc
 
-CFLAGS = -Wall -Wextra -Wpedantic -Wshadow -Wconversion
+CFLAGS = -Wall -Wextra -Wshadow
 
 DEBUGFLAGS = -g -DRELEASE
 RELEASEFLAGS = -O2

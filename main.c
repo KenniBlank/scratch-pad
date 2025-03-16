@@ -271,7 +271,7 @@ void setPixel(SDL_Renderer* renderer, int x, int y, Uint8 r, Uint8 g, Uint8 b, U
     SDL_RenderDrawPoint(renderer, x, y);
 }
 
-// Improved Wu’s Anti-Aliased Line Algorithm
+// Improved Wu's Anti-Aliased Line Algorithm with Thickness
 void better_line(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, int thickness) {
     int steep = abs(y2 - y1) > abs(x2 - x1);
 
@@ -285,54 +285,52 @@ void better_line(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, int thi
         swap(&y1, &y2);
     }
 
-    float dx = (float) (x2 - x1);
-    float dy = (float) (y2 - y1);
-    float gradient = (dx == 0.0) ? 1.0f : (float)(dy / dx);
+    float dx = (float)(x2 - x1);
+    float dy = (float)(y2 - y1);
+    float gradient = (dx == 0.0) ? 1.0 : dy / dx;
 
-    // Calculate the perpendicular slope
-    float perpendicular_gradient = (gradient == 0.0) ? 1.0f : (float)(-1.0 / gradient);
+    // Calculate perpendicular gradient for thickness
+    float perpendicular_gradient = (gradient == 0.0) ? 1.0 : -1.0 / gradient;
 
-    // Calculate the offset for thickness
-    int thickness_offset = (thickness - 1) / 2;  // Cast to int for iteration
+    // Loop through a range of thickness levels to draw a thick line
+    for (int t = -(thickness / 2); t <= (thickness / 2); t++) {
+        // Calculate offsets for the current thickness level
+        float offset_x = t * cos(atan(perpendicular_gradient));
+        float offset_y = t * sin(atan(perpendicular_gradient));
 
-    // Draw multiple lines to create thickness
-    for (int i = -thickness_offset; i <= thickness_offset; i++) {
-        float offset_x = (float) (i * cos(atan(perpendicular_gradient)));
-        float offset_y = (float) (i * sin(atan(perpendicular_gradient)));
+        // Adjust the starting and ending points based on the thickness offset
+        int adjusted_x1 = x1 + offset_x;
+        int adjusted_y1 = y1 + offset_y;
+        int adjusted_x2 = x2 + offset_x;
+        int adjusted_y2 = y2 + offset_y;
 
-        // Adjust the starting and ending points for the current parallel line
-        float adjusted_x1 = (float) x1 + offset_x;
-        float adjusted_y1 = (float) y1 + offset_y;
-        float adjusted_x2 = (float) x2 + offset_x;
-        float adjusted_y2 = (float) y2 + offset_y;
-
-        // Recalculate intermediate values for the adjusted line
+        // Recalculate gradient for the adjusted line
         float adjusted_dx = adjusted_x2 - adjusted_x1;
         float adjusted_dy = adjusted_y2 - adjusted_y1;
-        float adjusted_gradient = (adjusted_dx == 0.0) ? 1.0f : (float)(adjusted_dy / adjusted_dx);
-        float intery = adjusted_y1;  // This simplifies to adjusted_y1
+        float adjusted_gradient = (adjusted_dx == 0.0) ? 1.0 : adjusted_dy / adjusted_dx;
+        float intery = adjusted_y1 + adjusted_gradient * (adjusted_x1 - x1);
 
-        // First endpoint
-        int xend = (int) adjusted_x1;
-        int yend = (int) round(adjusted_y1);
-        float xgap = 1 - (float)(adjusted_x1 + 0.5 - floor(adjusted_x1 + 0.5));
+        // Draw the first pixel
+        int xend = adjusted_x1;
+        int yend = round(adjusted_y1);
+        float xgap = 1 - (adjusted_x1 + 0.5 - floor(adjusted_x1 + 0.5));
         int xpxl1 = xend;
         int ypxl1 = yend;
 
         if (steep) {
-            setPixel(renderer, ypxl1, xpxl1, unpack_color(text_color), (float) (1 - (intery - floor(intery))) * xgap);
-            setPixel(renderer, ypxl1 + 1, xpxl1, unpack_color(text_color), (float) (intery - floor(intery)) * xgap);
+            setPixel(renderer, ypxl1, xpxl1, unpack_color(text_color), (1 - (intery - floor(intery))) * xgap);
+            setPixel(renderer, ypxl1 + 1, xpxl1, unpack_color(text_color), (intery - floor(intery)) * xgap);
         } else {
-            setPixel(renderer, xpxl1, ypxl1, unpack_color(text_color), (float)(1 - (intery - floor(intery))) * xgap);
-            setPixel(renderer, xpxl1, ypxl1 + 1, unpack_color(text_color), (float) (intery - floor(intery)) * xgap);
+            setPixel(renderer, xpxl1, ypxl1, unpack_color(text_color), (1 - (intery - floor(intery))) * xgap);
+            setPixel(renderer, xpxl1, ypxl1 + 1, unpack_color(text_color), (intery - floor(intery)) * xgap);
         }
 
         intery += adjusted_gradient;
 
-        // Middle points
+        // Draw the middle pixels
         for (int x = xpxl1 + 1; x < adjusted_x2; x++) {
-            int y = (int)(floor(intery));
-            float f = intery - (float)(y);
+            int y = floor(intery);
+            float f = intery - y;
 
             if (steep) {
                 setPixel(renderer, y, x, unpack_color(text_color), 1 - f);
@@ -559,7 +557,7 @@ char* append_string(char *s1, char *s2) {
 }
 
 void RenderText(SDL_Renderer *renderer, TTF_Font *font, const char *text, int window_width) {
-    const int PADDING = 15; // Padding for positioning
+    const int PADDING = FONT_SIZE; // Padding for positioning
     int max_width_temp = window_width - 2 * PADDING;
     Uint32 max_width = max_width_temp > 0 ? (Uint32)max_width_temp : 0;
 
@@ -578,8 +576,8 @@ void RenderText(SDL_Renderer *renderer, TTF_Font *font, const char *text, int wi
     SDL_FreeSurface(textSurface);
 
     SDL_Rect textRect = {
-        PADDING,  // Left-aligned with padding
-        PADDING, // Top-aligned with padding
+        PADDING,
+        PADDING,
         textWidth,
         textHeight
     };
@@ -602,7 +600,7 @@ bool blinker_toggle_state() {
     Uint32 now = SDL_GetTicks(); // Get time in milliseconds
 
     if (now - last_toggle >= 700) { // If 700 milli second has passed
-        state = !state;  // Toggle state
+        state = !state;
         last_toggle = now;
     }
 
