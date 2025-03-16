@@ -459,6 +459,21 @@ void SaveAsImage(SDL_Renderer* renderer) {
     }
 
     SDL_FreeSurface(surface);
+
+    // Save Points:
+    FILE* fptr;
+    fptr = fopen("Data/Points", "w");
+    fprintf(fptr, "Coordinate, Line Thicknes, Connected");
+    for (size_t i = 0; i < pointCount; i++) {
+        fprintf(fptr, "(%d, %d), %d, %s\n", points[i].x, points[i].y, points[i].line_thickness, points[i].connect? "True": "False");
+    }
+    fclose(fptr);
+
+    // Save Txt:
+    fptr = fopen("Data/Texts", "w");
+    fprintf(fptr, "Data:\n");
+    fprintf(fptr, "%s", usr_inputs);
+    fclose(fptr);
 }
 
 void add_user_input(char key_value) {

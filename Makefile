@@ -5,7 +5,7 @@ CFLAGS = -Wall -Wextra -Wshadow
 DEBUGFLAGS = -g -DRELEASE
 RELEASEFLAGS = -O2
 
-LIBS = -lSDL2 -lSDL2_image -lm -lSDL2_ttf
+LIBS = -lSDL2 -lSDL2_image -lm -lSDL2_ttf -lGL
 
 CFiles = main.c
 App = "Scratch Pad"
