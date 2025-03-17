@@ -393,7 +393,7 @@ void ReRenderAllPoints(SDL_Renderer* renderer) {
         }
 }
 
-int image_name(char* folder, char* returnValue, size_t returnValueSize) {
+int unique_name(char* folder, char* returnValue, size_t returnValueSize) {
     if (!returnValue || returnValueSize == 0) return -1; // Error: Invalid buffer
 
     // Ensure folder Exists:
@@ -421,7 +421,31 @@ int image_name(char* folder, char* returnValue, size_t returnValueSize) {
     pclose(fp);
 
     // Filepath
-    snprintf(returnValue, returnValueSize, "%s__image__%03d.png", folder, count);
+    char* prefix = malloc(sizeof(char) * returnValueSize);
+    strcpy(prefix, returnValue);
+
+    another_name:
+    snprintf(returnValue, returnValueSize, "%s%s%03d.png", folder, prefix, count);
+    snprintf(command, sizeof(command), "ls \"%s\" | grep \"%s\" | wc -l", folder, returnValue);
+
+    fp = popen(command, "r");
+    if (!fp) {
+        printf("Failed to run command\n");
+        return 1;
+    }
+    if (fscanf(fp, "%d", &count) != 1) {
+        printf("Failed to read file count\n");
+        pclose(fp);
+        return 1;
+    }
+    print("%d", count);
+    if (count != 0) {
+        count++;
+        goto another_name;
+    }
+
+    pclose(fp);
+    free(prefix);
     return 0;
 }
 
@@ -450,8 +474,8 @@ void SaveAsImage(SDL_Renderer* renderer) {
         return;
     }
 
-    char filename[256];
-    image_name(FOLDER, filename, sizeof(filename));
+    char filename[256] = "__image__"; // prefix of save file names
+    unique_name(FOLDER, filename, sizeof(filename));
 
     // Save surface to PNG
     if (IMG_SavePNG(surface, filename) != 0) {
@@ -459,21 +483,6 @@ void SaveAsImage(SDL_Renderer* renderer) {
     }
 
     SDL_FreeSurface(surface);
-
-    // Save Points:
-    FILE* fptr;
-    fptr = fopen("Data/Points", "w");
-    fprintf(fptr, "Coordinate, Line Thicknes, Connected");
-    for (size_t i = 0; i < pointCount; i++) {
-        fprintf(fptr, "(%d, %d), %d, %s\n", points[i].x, points[i].y, points[i].line_thickness, points[i].connect? "True": "False");
-    }
-    fclose(fptr);
-
-    // Save Txt:
-    fptr = fopen("Data/Texts", "w");
-    fprintf(fptr, "Data:\n");
-    fprintf(fptr, "%s", usr_inputs);
-    fclose(fptr);
 }
 
 void add_user_input(char key_value) {

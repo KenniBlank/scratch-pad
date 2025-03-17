@@ -1,9 +1,9 @@
+#define FontLocation "/home/kenni/Experimental/scratch-pad/fonts/ComingSoon_bold.ttf"
+
 #ifdef RELEASE
-    #define FontLocation "/home/kenni/Experimental/scratch-pad/fonts/ComingSoon_bold.ttf"
     #define FOLDER "/home/kenni/Pictures/"
 #else
-    #define FontLocation "fonts/ComingSoon_bold.ttf"
-    #define FOLDER "Images/"
+    #define FOLDER "images/"
 #endif
 
 #define WINDOW_WIDTH 700

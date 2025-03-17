@@ -10,10 +10,13 @@ LIBS = -lSDL2 -lSDL2_image -lm -lSDL2_ttf -lGL
 CFiles = main.c
 App = "Scratch Pad"
 
+DEPENDENCIES = dependency/libtinyfiledialogs/tinyfiledialogs.c
+
 ifeq ($(BUILD),RELEASE)
-    CFLAGS += $(DEBUGFLAGS)
-else
     CFLAGS += $(RELEASEFLAGS)
+else
+    CFLAGS += $(DEBUGFLAGS)
+    # CFiles += $(DEPENDENCIES)
 endif
 
 all: compile
@@ -30,5 +33,5 @@ move: compile
 	@echo "Successful!"
 
 clean:
-	@rm -f "$(App)"
-	@rm -f Images/__image__*.png
+	@rm images/__image__*.png
+	@rm $(App)
