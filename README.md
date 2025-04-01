@@ -13,6 +13,7 @@ To use: Just open "Scratch Pad". It is an executable
 - [ ] Varied stroke width: + to increase, - to decrease
 - [ ] Buffer to store user keystrokes
 - [ ] Better Image saving
+- [ ] Icons to switch between erasor, pen, pan?: All must be 32 size from google fonts
 
 ## Examples:
 

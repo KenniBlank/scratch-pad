@@ -1,5 +1,5 @@
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_stdinc.h>
+#include <SDL2/SDL_clipboard.h>
 #include <SDL2/SDL_ttf.h>
 #include <SDL2/SDL_mouse.h>
 #include <SDL2/SDL_timer.h>
@@ -8,12 +8,9 @@
 #include <SDL2/SDL_events.h>
 #include <SDL2/SDL_pixels.h>
 #include <SDL2/SDL_render.h>
+#include <SDL2/SDL_stdinc.h>
 #include <SDL2/SDL_surface.h>
 #include <SDL2/SDL_keycode.h>
-
-// Open GL
-#include <GL/glew.h>
-// TODO: for rendering svgs
 
 #include <stdio.h>
 #include <stddef.h>
@@ -23,6 +20,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <wchar.h>
 
 #include "__macros.h"
 #include "__struct.h"
@@ -34,6 +32,7 @@ void ReRenderAllPoints(SDL_Renderer* renderer);
 void add_user_input(char key_value);
 void pop_user_input();
 void RenderText(SDL_Renderer *renderer, TTF_Font *font, const char *text, int window_width);
+void RenderIcons(SDL_Renderer* renderer, SDL_Texture* texture, size_t x, size_t y, size_t w, size_t h, SDL_Color color);
 
 bool blinker_toggle_state();
 
@@ -43,6 +42,19 @@ void better_line(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, int thi
 void SaveAsImage(SDL_Renderer* renderer);
 char* replace(const char* str, const char* old_substr, const char* new_substr);
 char* append_string(char *s1, char *s2);
+
+SDL_Texture* LoadImageAsTexture(const char* path, SDL_Renderer* renderer);
+bool collisionDetection(int x1, int y1, int width1, int height1, int x2, int y2, int width2, int height2);
+
+typedef struct {
+        char *img_file_path, *Name;
+        SDL_Color Color;
+        size_t scale_x, scale_y;
+        SDL_Texture* Texture;
+} Icons;
+
+Icons* all_icons = NULL;
+size_t total_icons = 0;
 
 /* Global Variables */
 // Dynamic array to store points
@@ -60,9 +72,13 @@ SDL_Color background_color;
 
 int main(void) {
     // Initialize SDL
-    if (SDL_Init(SDL_INIT_VIDEO) < 0 || TTF_Init() < 0) {
+    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
         return 1;
+    }
+    if (TTF_Init() < 0) {
+            printf("TTF couldn't be initialized: %s\n", SDL_GetError());
+            return 1;
     }
 
     // Create a window
@@ -74,7 +90,6 @@ int main(void) {
       WINDOW_HEIGHT,
       SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_BORDERLESS
     );
-
     if (window == NULL) {
         printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
         SDL_Quit();
@@ -95,41 +110,52 @@ int main(void) {
     SDL_SetRenderDrawColor(renderer, unpack_color(background_color)); // First look color
     SDL_RenderClear(renderer);
     SDL_RenderPresent(renderer);
+    IMG_Init(IMG_INIT_PNG);
 
-    SDL_Cursor* cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_CROSSHAIR);
-    SDL_SetCursor(cursor);
-
-    TTF_Font *font = NULL;
-    font = TTF_OpenFont(FontLocation, FONT_SIZE); // Load the font with the fixed size
+    TTF_Font *font = TTF_OpenFont(FontLocation, FONT_SIZE); // Load the font with the fixed size
     if (!font) {
         printf("Font loading failed: %s\n", TTF_GetError());
         return 1;
     }
 
-    SDL_StartTextInput(); // Enable text input
+
+    SDL_Cursor* DEFAULT_CURSOR = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_ARROW);
+    SDL_Cursor* cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_WAIT);
+    SDL_SetCursor(cursor);
 
     // Main loop
     SDL_Event event;
 
     // Essential Variables definition
-    bool running = true;
+    bool app_running = true;
+
+    bool DarkMode = false;
     bool isDrawing = false;
     bool eraserMode = false;
-    bool DarkMode = false;
-    int line_thickness = 3;
+
+    size_t line_thickness = 3;
     int window_width = WINDOW_WIDTH, window_height = WINDOW_HEIGHT;
-    text_color = DarkMode? (SDL_Color) {255, 255, 255, 255}: (SDL_Color) {15, 20, 25, 255};
-    background_color = DarkMode? (SDL_Color) {15, 20, 25, 255}: (SDL_Color) {255, 255, 255, 255};
+
     Uint32 delay_in_ms = (Uint32)(1000.0 / FPS);
 
-    while (running) {
+    text_color = DarkMode? (SDL_Color) {255, 255, 255, 255}: (SDL_Color) {15, 20, 25, 255};
+    background_color = DarkMode? (SDL_Color) {15, 20, 25, 255}: (SDL_Color) {255, 255, 255, 255};
+
+    SDL_StartTextInput(); // Enable text input
+
+    bool ctrlA_pressed = false;
+
+    cursor = DEFAULT_CURSOR;
+    SDL_SetCursor(cursor);
+
+    while (app_running) {
         SDL_GetWindowSize(window, &window_width, &window_height);
 
         // Handle events
         while (SDL_PollEvent(&event)) {
             switch (event.type) {
                 case SDL_QUIT:
-                    running = false;
+                    app_running = false;
                     break;
 
                 case SDL_TEXTINPUT:
@@ -140,7 +166,7 @@ int main(void) {
                     // CTRL is super key
                     if (event.key.keysym.mod & KMOD_LCTRL) {
                         switch (event.key.keysym.sym) {
-                            case SDLK_c:
+                            case SDLK_q:
                                 // Reset
                                 pointCount = 0;
                                 pointCapacity = 0;
@@ -169,22 +195,30 @@ int main(void) {
                             case SDLK_e:
                                 eraserMode = !eraserMode;
                                 break;
+
+                            case SDLK_a:
+                                ctrlA_pressed = true;
+                                break;
+
+                            case SDLK_c:
+                                if (ctrlA_pressed) {
+                                        SDL_SetClipboardText(usr_inputs);
+                                        ctrlA_pressed = false;
+                                }
                         }
                     }
 
                     switch (event.key.keysym.sym) {
                         case SDLK_KP_PLUS:
                             line_thickness += 1;
-                            printf("++\n");
                             break;
 
                         case SDLK_KP_MINUS:
                             line_thickness -= 1;
-                            printf("--\n");
                             break;
 
                         case SDLK_ESCAPE:
-                            running = false;
+                            app_running = false;
                             break;
 
                         case SDLK_RETURN:
@@ -208,6 +242,8 @@ int main(void) {
                         if (event.button.button == SDL_BUTTON_LEFT) {
                             isDrawing = true;
                             addPoint(event.button.x, event.button.y, line_thickness, isDrawing);
+                            cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_CROSSHAIR);
+                            SDL_SetCursor(cursor);
                         }
                     }
                     break;
@@ -219,6 +255,8 @@ int main(void) {
                         if (event.button.button == SDL_BUTTON_LEFT) {
                             isDrawing = false;
                             addPoint(event.button.x, event.button.y, line_thickness, isDrawing);
+                            cursor = DEFAULT_CURSOR;
+                            SDL_SetCursor(cursor);
                         }
                     }
                     break;
@@ -229,6 +267,8 @@ int main(void) {
                     } else {
                         if (isDrawing) {
                             addPoint(event.motion.x, event.motion.y, line_thickness, isDrawing); // Store the new point
+                            cursor = SDL_CreateSystemCursor(SDL_SYSTEM_CURSOR_CROSSHAIR);
+                            SDL_SetCursor(cursor);
                         }
                     }
                     break;
@@ -259,8 +299,8 @@ int main(void) {
 
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
+    IMG_Quit();
     SDL_Quit();
-
     return 0;
 }
 
@@ -497,6 +537,7 @@ void add_user_input(char key_value) {
         }
         usr_inputs = temp;
     }
+
     // Append the character
     usr_inputs[usr_inputs_len] = key_value;
     usr_inputs_len++;
@@ -629,4 +670,31 @@ bool blinker_toggle_state() {
     }
 
     return state;
+}
+
+bool collisionDetection(int x1, int y1, int width1, int height1, int x2, int y2, int width2, int height2) {
+        return ((x1 + width1 > x2) && (x1 < x2 + width2) && (y1 + height1 > y2) && (y1 < y2 + height2));
+}
+
+SDL_Texture* LoadImageAsTexture(const char* path, SDL_Renderer* renderer) {
+        SDL_Surface* surface = IMG_Load(path);
+        if (!surface) {
+                printf("Image Load Error: %s\n", IMG_GetError());
+                return NULL;
+        }
+        SDL_Texture* texture = SDL_CreateTextureFromSurface(renderer, surface);
+        SDL_FreeSurface(surface);
+        return texture;
+}
+
+void RenderIcons(SDL_Renderer* renderer, SDL_Texture* texture, size_t x, size_t y, size_t w, size_t h, SDL_Color color) {
+    SDL_SetTextureColorMod(texture, color.r * color.a, color.g * color.a, color.b * color.a);  // Tint the texture
+
+    SDL_Rect dest;
+    dest.w = w,
+    dest.h = h,
+    dest.x = (x - w) / 2;
+    dest.y = (y - h) / 2;
+
+    SDL_RenderCopy(renderer, texture, NULL, &dest);
 }
