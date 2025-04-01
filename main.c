@@ -31,7 +31,7 @@ void ReRenderAllPoints(SDL_Renderer* renderer);
 
 void add_user_input(char key_value);
 void pop_user_input();
-void RenderText(SDL_Renderer *renderer, TTF_Font *font, const char *text, int window_width);
+void RenderText(SDL_Renderer *renderer, TTF_Font *font, const char *text, int window_width, bool highlight);
 void RenderIcons(SDL_Renderer* renderer, SDL_Texture* texture, size_t x, size_t y, size_t w, size_t h, SDL_Color color);
 
 bool blinker_toggle_state();
@@ -45,6 +45,10 @@ char* append_string(char *s1, char *s2);
 
 SDL_Texture* LoadImageAsTexture(const char* path, SDL_Renderer* renderer);
 bool collisionDetection(int x1, int y1, int width1, int height1, int x2, int y2, int width2, int height2);
+
+// void Notification(char* message, size_t x, size_t y, size_t width, size_t height, SDL_Color txt_color) {
+//         // TODO
+// }
 
 typedef struct {
         char *img_file_path, *Name;
@@ -97,7 +101,7 @@ int main(void) {
     }
 
     // Create a renderer
-    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED);
+    SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (renderer == NULL) {
         printf("Renderer could not be created! SDL_Error: %s\n", SDL_GetError());
         SDL_DestroyWindow(window);
@@ -166,18 +170,21 @@ int main(void) {
                     // CTRL is super key
                     if (event.key.keysym.mod & KMOD_LCTRL) {
                         switch (event.key.keysym.sym) {
-                            case SDLK_q:
-                                // Reset
-                                pointCount = 0;
-                                pointCapacity = 0;
-                                if (points) {
-                                    free(points);
-                                    points = NULL;
+                            case SDLK_x:
+                                if (ctrlA_pressed) {
+                                        // Reset All
+                                        pointCount = 0;
+                                        pointCapacity = 0;
+                                        if (points) {
+                                        free(points);
+                                        points = NULL;
+                                        }
+                                        // Clear board
+                                        SDL_SetRenderDrawColor(renderer, unpack_color(background_color));
+                                        SDL_RenderClear(renderer);
+                                        SDL_RenderPresent(renderer);
+                                        ctrlA_pressed = false;
                                 }
-                                // Clear board
-                                SDL_SetRenderDrawColor(renderer, unpack_color(background_color));
-                                SDL_RenderClear(renderer);
-                                SDL_RenderPresent(renderer);
                                 break;
 
                             case SDLK_d:
@@ -197,7 +204,7 @@ int main(void) {
                                 break;
 
                             case SDLK_a:
-                                ctrlA_pressed = true;
+                                ctrlA_pressed = !ctrlA_pressed;
                                 break;
 
                             case SDLK_c:
@@ -279,10 +286,10 @@ int main(void) {
 
         if (blinker_toggle_state()) {
             add_user_input('_');
-            RenderText(renderer, font, usr_inputs, window_width);
+            RenderText(renderer, font, usr_inputs, window_width, ctrlA_pressed);
             pop_user_input();
         } else {
-            RenderText(renderer, font, usr_inputs, window_width);
+            RenderText(renderer, font, usr_inputs, window_width, ctrlA_pressed);
         }
 
         SDL_RenderPresent(renderer);
@@ -621,21 +628,56 @@ char* append_string(char *s1, char *s2) {
     return result;
 }
 
-void RenderText(SDL_Renderer *renderer, TTF_Font *font, const char *text, int window_width) {
+void RenderText(SDL_Renderer *renderer, TTF_Font *font, const char *text, int window_width, bool highlight) {
     const int PADDING = FONT_SIZE; // Padding for positioning
     int max_width_temp = window_width - 2 * PADDING;
     Uint32 max_width = max_width_temp > 0 ? (Uint32)max_width_temp : 0;
 
     char *formattedTxt = replace(replace(text, "\t", "    "), " ", "  ");
+    if (highlight) {
+        formattedTxt = replace(formattedTxt, "_\0", "\0");
+    }
+
     if (!formattedTxt) {
         print("Couldn't Render text");
         return;
     }
 
-    SDL_Surface *textSurface = TTF_RenderText_Blended_Wrapped(font, formattedTxt, text_color, max_width);
+    SDL_Color txt_color = text_color, bg_color = background_color;
+    if (highlight) swap(&txt_color, &bg_color);
+
+    SDL_Surface *textSurface = TTF_RenderText_Blended_Wrapped(font, formattedTxt, txt_color, max_width);
+    free(formattedTxt);
     if (!textSurface) return;
 
+    if (highlight) {
+            // Create background surface
+            SDL_Surface *bgSurface = SDL_CreateRGBSurfaceWithFormat(
+                0, textSurface->w, textSurface->h, 32, SDL_PIXELFORMAT_RGBA32);
+            if (!bgSurface) {
+                SDL_FreeSurface(textSurface);
+                return;
+            }
+
+            // Fill with highlight color
+            SDL_FillRect(bgSurface, NULL,
+                        SDL_MapRGBA(bgSurface->format,
+                                   bg_color.r,
+                                   bg_color.g,
+                                   bg_color.b,
+                                   bg_color.a));
+
+            // Blit text onto background
+            SDL_BlitSurface(textSurface, NULL, bgSurface, NULL);
+            SDL_FreeSurface(textSurface);
+
+            // Use the composed surface for texture creation
+            textSurface = bgSurface;
+        }
+
     SDL_Texture *textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
+    if (!textTexture) return;
+
     int textWidth = textSurface->w;
     int textHeight = textSurface->h;
     SDL_FreeSurface(textSurface);
@@ -649,7 +691,6 @@ void RenderText(SDL_Renderer *renderer, TTF_Font *font, const char *text, int wi
 
     SDL_RenderCopy(renderer, textTexture, NULL, &textRect);
     SDL_DestroyTexture(textTexture);
-    free(formattedTxt);
 }
 
 void pop_user_input() {
