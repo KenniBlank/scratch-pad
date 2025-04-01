@@ -172,18 +172,14 @@ int main(void) {
                         switch (event.key.keysym.sym) {
                             case SDLK_x:
                                 if (ctrlA_pressed) {
-                                        // Reset All
-                                        pointCount = 0;
-                                        pointCapacity = 0;
-                                        if (points) {
-                                        free(points);
-                                        points = NULL;
-                                        }
-                                        // Clear board
-                                        SDL_SetRenderDrawColor(renderer, unpack_color(background_color));
-                                        SDL_RenderClear(renderer);
-                                        SDL_RenderPresent(renderer);
+                                        SDL_SetClipboardText(usr_inputs);
                                         ctrlA_pressed = false;
+                                        if (usr_inputs) {
+                                                free(usr_inputs);
+                                                usr_inputs = NULL;
+                                                usr_inputs_len = 0;
+                                                usr_inputs_capacity = 0;
+                                        }
                                 }
                                 break;
 
@@ -233,8 +229,29 @@ int main(void) {
                             break;
 
                         case SDLK_BACKSPACE:
-                            pop_user_input();
-                            break;
+                                if (ctrlA_pressed) {
+                                        // Reset All
+                                        if (points) {
+                                                pointCount = 0;
+                                                pointCapacity = 0;
+                                                free(points);
+                                                points = NULL;
+                                                // Clear board
+                                                SDL_SetRenderDrawColor(renderer, unpack_color(background_color));
+                                                SDL_RenderClear(renderer);
+                                                SDL_RenderPresent(renderer);
+                                        }
+                                        if (usr_inputs) {
+                                                free(usr_inputs);
+                                                usr_inputs = NULL;
+                                                usr_inputs_len = 0;
+                                                usr_inputs_capacity = 0;
+                                        }
+                                        ctrlA_pressed = false;
+                                } else {
+                                        pop_user_input();
+                                }
+                                break;
 
                         case SDLK_TAB:
                             add_user_input('\t');
