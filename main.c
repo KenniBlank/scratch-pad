@@ -137,10 +137,8 @@ int main(void) {
     bool isDrawing = false;
     bool eraserMode = false;
 
-    size_t line_thickness = 3;
+    size_t line_thickness = 2;
     int window_width = WINDOW_WIDTH, window_height = WINDOW_HEIGHT;
-
-    Uint32 delay_in_ms = (Uint32)(1000.0 / FPS);
 
     text_color = DarkMode? (SDL_Color) {255, 255, 255, 255}: (SDL_Color) {15, 20, 25, 255};
     background_color = DarkMode? (SDL_Color) {15, 20, 25, 255}: (SDL_Color) {255, 255, 255, 255};
@@ -310,7 +308,6 @@ int main(void) {
         }
 
         SDL_RenderPresent(renderer);
-        SDL_Delay(delay_in_ms);
     }
     // Cleanup
     SDL_FreeCursor(cursor);

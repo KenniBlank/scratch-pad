@@ -13,7 +13,6 @@
 #define RENDER_WINDOW_WIDTH 3840
 #define RENDER_WINDOW_HEIGHT 2160
 
-#define FPS 144.0
 #define FONT_SIZE 16
 #define POINTS_THRESHOLD 1 // In pixel: basically how much gap minimum should be between points minimum
 
