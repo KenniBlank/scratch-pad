@@ -6,6 +6,9 @@ This is project created with sdl2 in C. Last C project of mine. Currently this i
 
 To use: Just open "Scratch Pad". It is an executable
 
+Controls:
+- CTRL + D: Dark mode on/off
+
 ## TODO:
 
 - [ ] Create from scratch again to accomodate cleaner, more efficient code. (I have rough Idea)
