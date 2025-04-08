@@ -6,8 +6,11 @@ This is project created with sdl2 in C. Last C project of mine. Currently this i
 
 To use: Just open "Scratch Pad". It is an executable
 
+Images are saved to images folder
+
 Controls:
 - CTRL + D: Dark mode on/off
+- CTRL + S: Save as Image
 
 ## TODO:
 
