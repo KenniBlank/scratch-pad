@@ -131,7 +131,7 @@ int main(void) {
     // Essential Variables definition
     bool app_running = true;
 
-    bool DarkMode = false;
+    bool DarkMode = true;
     bool isDrawing = false;
     bool eraserMode = false;
 
