@@ -1,6 +1,6 @@
 CC = gcc
 
-CFLAGS = -Wall -Wextra -Wshadow
+CFLAGS = -std=gnu2x -Wall -Wextra -Wshadow
 
 DEBUGFLAGS = -g -DRELEASE
 RELEASEFLAGS = -O2

@@ -1,8 +1,15 @@
-# Just a Place for me to make quick notes to self
+# Scratch Pad
+
+This is project created with sdl2 in C. Last C project of mine. Currently this is a rough draft, actual app code will be added later.
+
+## Docs:
 
 To use: Just open "Scratch Pad". It is an executable
 
 ## TODO:
+
+- [ ] Create from scratch again to accomodate cleaner, more efficient code. (I have rough Idea)
+
 - [X] AntiAliasing for the lines
 - [X] Delete duplicate points or points within threshold
 - [X] Save frame as png
@@ -18,5 +25,4 @@ To use: Just open "Scratch Pad". It is an executable
 ## Examples:
 
 - Hello World:
-
-    ![Alt text](Images/Hello_world.png)
+    ![Alt text](mages/Hello_world.png)

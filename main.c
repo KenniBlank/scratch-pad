@@ -1,5 +1,5 @@
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_clipboard.h>
+#include <SDL2/SDL_rect.h>
 #include <SDL2/SDL_ttf.h>
 #include <SDL2/SDL_mouse.h>
 #include <SDL2/SDL_timer.h>
@@ -11,6 +11,7 @@
 #include <SDL2/SDL_stdinc.h>
 #include <SDL2/SDL_surface.h>
 #include <SDL2/SDL_keycode.h>
+#include <SDL2/SDL_clipboard.h>
 
 #include <stdio.h>
 #include <stddef.h>
@@ -45,10 +46,6 @@ char* append_string(char *s1, char *s2);
 
 SDL_Texture* LoadImageAsTexture(const char* path, SDL_Renderer* renderer);
 bool collisionDetection(int x1, int y1, int width1, int height1, int x2, int y2, int width2, int height2);
-
-// void Notification(char* message, size_t x, size_t y, size_t width, size_t height, SDL_Color txt_color) {
-//         // TODO
-// }
 
 typedef struct {
         char *img_file_path, *Name;
@@ -87,7 +84,7 @@ int main(void) {
 
     // Create a window
     SDL_Window* window = SDL_CreateWindow(
-      "SDL2 Drawing with Points",
+      "Scratch Pad",
       SDL_WINDOWPOS_CENTERED,
       SDL_WINDOWPOS_CENTERED,
       WINDOW_WIDTH,
@@ -116,7 +113,8 @@ int main(void) {
     SDL_RenderPresent(renderer);
     IMG_Init(IMG_INIT_PNG);
 
-    TTF_Font *font = TTF_OpenFont(FontLocation, FONT_SIZE); // Load the font with the fixed size
+    int font_size = FONT_SIZE;
+    TTF_Font *font = TTF_OpenFont(FontLocation, font_size); // Load the font with the fixed size
     if (!font) {
         printf("Font loading failed: %s\n", TTF_GetError());
         return 1;
@@ -151,8 +149,6 @@ int main(void) {
     SDL_SetCursor(cursor);
 
     while (app_running) {
-        SDL_GetWindowSize(window, &window_width, &window_height);
-
         // Handle events
         while (SDL_PollEvent(&event)) {
             switch (event.type) {
@@ -163,6 +159,12 @@ int main(void) {
                 case SDL_TEXTINPUT:
                     add_user_input(event.text.text[0]);
                     break;
+
+                case SDL_WINDOWEVENT:
+                        if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
+                                SDL_GetWindowSize(window, &window_width, &window_height);
+                        }
+                        break;
 
                 case SDL_KEYDOWN:
                     // CTRL is super key
@@ -206,6 +208,15 @@ int main(void) {
                                         SDL_SetClipboardText(usr_inputs);
                                         ctrlA_pressed = false;
                                 }
+                                break;
+                            case SDLK_KP_PLUS:
+                                font_size += 1;
+                                font = TTF_OpenFont(FontLocation, font_size);
+                                break;
+                            case SDLK_KP_MINUS:
+                                font_size -= 1;
+                                font = TTF_OpenFont(FontLocation, font_size);
+                                break;
                         }
                     }
 
@@ -216,6 +227,8 @@ int main(void) {
 
                         case SDLK_KP_MINUS:
                             line_thickness -= 1;
+                            font_size -= 2;
+                            font = TTF_OpenFont(FontLocation, font_size);;
                             break;
 
                         case SDLK_ESCAPE:
@@ -297,8 +310,11 @@ int main(void) {
             }
         }
 
-        ReRenderAllPoints(renderer);
+        // Canvas Color i.e Background Color
+        SDL_SetRenderDrawColor(renderer, unpack_color(background_color));
+        SDL_RenderClear(renderer);
 
+        ReRenderAllPoints(renderer);
         if (blinker_toggle_state()) {
             add_user_input('_');
             RenderText(renderer, font, usr_inputs, window_width, ctrlA_pressed);
@@ -441,10 +457,6 @@ void RenderPoint(SDL_Renderer* renderer, Point p1, Point p2) {
 
 // Function to redraw all stored points
 void ReRenderAllPoints(SDL_Renderer* renderer) {
-        // Background Color
-        SDL_SetRenderDrawColor(renderer, unpack_color(background_color));
-        SDL_RenderClear(renderer);
-
         // Draw Color
         SDL_SetRenderDrawColor(renderer, unpack_color(text_color));
         if (pointCount != 0) {
@@ -521,15 +533,15 @@ void SaveAsImage(SDL_Renderer* renderer) {
         return;
     }
 
-    // Check surface->pixels before using it
-    if (!surface->pixels) {
+    // Check surface -> pixels before using it
+    if (!surface -> pixels) {
         printf("Surface pixels are NULL after creation\n");
         SDL_FreeSurface(surface);
         surface = NULL;
         return;
     }
 
-    if (SDL_RenderReadPixels(renderer, NULL, surface->format->format, surface->pixels, surface->pitch) < 0) {
+    if (SDL_RenderReadPixels(renderer, NULL, surface -> format -> format, surface -> pixels, surface -> pitch) < 0) {
         printf("Unable to read pixels: %s\n", SDL_GetError());
         SDL_FreeSurface(surface);
         return;
@@ -667,7 +679,7 @@ void RenderText(SDL_Renderer *renderer, TTF_Font *font, const char *text, int wi
     if (highlight) {
             // Create background surface
             SDL_Surface *bgSurface = SDL_CreateRGBSurfaceWithFormat(
-                0, textSurface->w, textSurface->h, 32, SDL_PIXELFORMAT_RGBA32);
+                0, textSurface -> w, textSurface -> h, 32, SDL_PIXELFORMAT_RGBA32);
             if (!bgSurface) {
                 SDL_FreeSurface(textSurface);
                 return;
@@ -675,7 +687,7 @@ void RenderText(SDL_Renderer *renderer, TTF_Font *font, const char *text, int wi
 
             // Fill with highlight color
             SDL_FillRect(bgSurface, NULL,
-                        SDL_MapRGBA(bgSurface->format,
+                        SDL_MapRGBA(bgSurface -> format,
                                    bg_color.r,
                                    bg_color.g,
                                    bg_color.b,
@@ -692,8 +704,8 @@ void RenderText(SDL_Renderer *renderer, TTF_Font *font, const char *text, int wi
     SDL_Texture *textTexture = SDL_CreateTextureFromSurface(renderer, textSurface);
     if (!textTexture) return;
 
-    int textWidth = textSurface->w;
-    int textHeight = textSurface->h;
+    int textWidth = textSurface -> w;
+    int textHeight = textSurface -> h;
     SDL_FreeSurface(textSurface);
 
     SDL_Rect textRect = {
@@ -708,23 +720,22 @@ void RenderText(SDL_Renderer *renderer, TTF_Font *font, const char *text, int wi
 }
 
 void pop_user_input() {
-    if (usr_inputs_len != 0) {
-        usr_inputs_len -= 1;
-    }
-    usr_inputs[usr_inputs_len] = '\0';
+        if (usr_inputs_len != 0) {
+                usr_inputs_len -= 1;
+        }
+        usr_inputs[usr_inputs_len] = '\0';
 }
 
 bool blinker_toggle_state() {
-    static bool state = false;
-    static Uint32 last_toggle = 0;
-    Uint32 now = SDL_GetTicks(); // Get time in milliseconds
+        static bool state = false;
+        static Uint32 last_toggle = 0;
+        Uint32 now = SDL_GetTicks(); // Get time in milliseconds
 
-    if (now - last_toggle >= 700) { // If 700 milli second has passed
-        state = !state;
-        last_toggle = now;
-    }
-
-    return state;
+        if (now - last_toggle >= 700) { // If 700 milli second has passed
+                state = !state;
+                last_toggle = now;
+        }
+        return state;
 }
 
 bool collisionDetection(int x1, int y1, int width1, int height1, int x2, int y2, int width2, int height2) {
@@ -743,13 +754,13 @@ SDL_Texture* LoadImageAsTexture(const char* path, SDL_Renderer* renderer) {
 }
 
 void RenderIcons(SDL_Renderer* renderer, SDL_Texture* texture, size_t x, size_t y, size_t w, size_t h, SDL_Color color) {
-    SDL_SetTextureColorMod(texture, color.r * color.a, color.g * color.a, color.b * color.a);  // Tint the texture
+        SDL_SetTextureColorMod(texture, color.r * color.a, color.g * color.a, color.b * color.a);  // Tint the texture
 
-    SDL_Rect dest;
-    dest.w = w,
-    dest.h = h,
-    dest.x = (x - w) / 2;
-    dest.y = (y - h) / 2;
+        SDL_Rect dest;
+        dest.w = w,
+        dest.h = h,
+        dest.x = (x - w) / 2;
+        dest.y = (y - h) / 2;
 
-    SDL_RenderCopy(renderer, texture, NULL, &dest);
+        SDL_RenderCopy(renderer, texture, NULL, &dest);
 }
