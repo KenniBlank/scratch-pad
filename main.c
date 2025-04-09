@@ -1,17 +1,7 @@
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_rect.h>
-#include <SDL2/SDL_ttf.h>
-#include <SDL2/SDL_mouse.h>
-#include <SDL2/SDL_timer.h>
-#include <SDL2/SDL_image.h>
-#include <SDL2/SDL_video.h>
-#include <SDL2/SDL_events.h>
 #include <SDL2/SDL_pixels.h>
-#include <SDL2/SDL_render.h>
-#include <SDL2/SDL_stdinc.h>
-#include <SDL2/SDL_surface.h>
-#include <SDL2/SDL_keycode.h>
-#include <SDL2/SDL_clipboard.h>
+#include <SDL2/SDL_ttf.h>
+#include <SDL2/SDL_image.h>
 
 #include <stdio.h>
 #include <stddef.h>
@@ -27,7 +17,7 @@
 #include "__struct.h"
 
 void addPoint(int x, int y, int line_thickness, bool connect);
-void RenderPoint(SDL_Renderer* renderer, Point p1, Point p2);
+void RenderPoint(SDL_Renderer* renderer, Point p1, Point p2, SDL_Color color);
 void ReRenderAllPoints(SDL_Renderer* renderer);
 
 void add_user_input(char key_value);
@@ -448,20 +438,18 @@ void addPoint(int x, int y, int line_thickness, bool connect) {
     }
 }
 
-void RenderPoint(SDL_Renderer* renderer, Point p1, Point p2) {
+void RenderPoint(SDL_Renderer* renderer, Point p1, Point p2, SDL_Color color) {
     if (p1.connect && p2.connect) {
-        SDL_SetRenderDrawColor(renderer, unpack_color(text_color));
+        SDL_SetRenderDrawColor(renderer, unpack_color(color));
         better_line(renderer, p1.x, p1.y, p2.x, p2.y, (p1.line_thickness + p1.line_thickness) / 2);
     }
 }
 
 // Function to redraw all stored points
 void ReRenderAllPoints(SDL_Renderer* renderer) {
-        // Draw Color
-        SDL_SetRenderDrawColor(renderer, unpack_color(text_color));
         if (pointCount != 0) {
             for (size_t i = 0; i < pointCount - 1; i++) {
-                    RenderPoint(renderer, points[i], points[i + 1]);
+                    RenderPoint(renderer, points[i], points[i + 1], text_color);
             }
         }
 }

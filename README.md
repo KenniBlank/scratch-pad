@@ -1,6 +1,8 @@
 # Scratch Pad
 
-This is project created with sdl2 in C. Last C project of mine. Currently this is a rough draft, actual app code will be added later.
+This is project created with sdl2 in C. Last C project of mine. Currently this is the rough test draft. I make changes here and then later add them as better versions in another repo if I love it.
+
+Actual Better Repo: [Repo Link](https://github.com/KenniBlank/Scratch_Pad)
 
 ## Docs:
 
