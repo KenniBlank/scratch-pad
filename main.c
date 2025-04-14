@@ -4,6 +4,7 @@
 #include <SDL2/SDL_ttf.h>
 #include <SDL2/SDL_image.h>
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stddef.h>
 #include <stdlib.h>
@@ -140,15 +141,16 @@ int main(void) {
     SDL_SetCursor(cursor);
     bool cursorVisible = true;
     SDL_ShowCursor(cursorVisible);
-    Uint32 lastActivity = SDL_GetTicks();
+    uint32_t lastActivity = SDL_GetTicks();
 
-    const int INACTIVITY_TIMEOUT = 5;
+    const uint32_t INACTIVITY_TIMEOUT = 5000; // ms: 5000 == 5 sec
 
     while (app_running) {
-        if (cursorVisible && SDL_GetTicks() - lastActivity > INACTIVITY_TIMEOUT) {
-            SDL_ShowCursor(SDL_DISABLE);
+        if (cursorVisible && (SDL_GetTicks() - lastActivity) > INACTIVITY_TIMEOUT) {
             cursorVisible = false;
+            SDL_ShowCursor(cursorVisible);
         }
+
         // Handle events
         while (SDL_PollEvent(&event)) {
             switch (event.type) {
@@ -158,8 +160,8 @@ int main(void) {
 
                 case SDL_TEXTINPUT:
                     add_user_input(event.text.text[0]);
-                    SDL_ShowCursor(SDL_DISABLE);
                     cursorVisible = false;
+                    SDL_ShowCursor(cursorVisible);
                     break;
 
                 case SDL_WINDOWEVENT:
@@ -304,8 +306,8 @@ int main(void) {
                 case SDL_MOUSEMOTION:
                     lastActivity = SDL_GetTicks();
                     if (!cursorVisible) {
-                        SDL_ShowCursor(SDL_ENABLE);
                         cursorVisible = true;
+                        SDL_ShowCursor(cursorVisible);
                     }
                     if (eraserMode) {
 
