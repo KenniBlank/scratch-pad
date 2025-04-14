@@ -1,4 +1,5 @@
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_mouse.h>
 #include <SDL2/SDL_pixels.h>
 #include <SDL2/SDL_ttf.h>
 #include <SDL2/SDL_image.h>
@@ -128,8 +129,8 @@ int main(void) {
     size_t line_thickness = 2;
     int window_width = WINDOW_WIDTH, window_height = WINDOW_HEIGHT;
 
-    text_color = DarkMode? (SDL_Color) {255, 255, 255, 255}: (SDL_Color) {15, 20, 25, 255};
-    background_color = DarkMode? (SDL_Color) {15, 20, 25, 255}: (SDL_Color) {255, 255, 255, 255};
+    text_color = DarkMode? (SDL_Color) {255, 255, 255, 255}: (SDL_Color) {0, 0, 0, 255};
+    background_color = DarkMode? (SDL_Color) {0, 0, 0, 255}: (SDL_Color) {255, 255, 255, 255};
 
     SDL_StartTextInput(); // Enable text input
 
@@ -137,8 +138,17 @@ int main(void) {
 
     cursor = DEFAULT_CURSOR;
     SDL_SetCursor(cursor);
+    bool cursorVisible = true;
+    SDL_ShowCursor(cursorVisible);
+    Uint32 lastActivity = SDL_GetTicks();
+
+    const int INACTIVITY_TIMEOUT = 5;
 
     while (app_running) {
+        if (cursorVisible && SDL_GetTicks() - lastActivity > INACTIVITY_TIMEOUT) {
+            SDL_ShowCursor(SDL_DISABLE);
+            cursorVisible = false;
+        }
         // Handle events
         while (SDL_PollEvent(&event)) {
             switch (event.type) {
@@ -148,10 +158,13 @@ int main(void) {
 
                 case SDL_TEXTINPUT:
                     add_user_input(event.text.text[0]);
+                    SDL_ShowCursor(SDL_DISABLE);
+                    cursorVisible = false;
                     break;
 
                 case SDL_WINDOWEVENT:
-                        if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED) {
+                        if (event.window.
+                                event == SDL_WINDOWEVENT_SIZE_CHANGED) {
                                 SDL_GetWindowSize(window, &window_width, &window_height);
                         }
                         break;
@@ -217,8 +230,6 @@ int main(void) {
 
                         case SDLK_KP_MINUS:
                             line_thickness -= 1;
-                            font_size -= 2;
-                            font = TTF_OpenFont(FontLocation, font_size);;
                             break;
 
                         case SDLK_ESCAPE:
@@ -257,6 +268,10 @@ int main(void) {
                         case SDLK_TAB:
                             add_user_input('\t');
                             break;
+
+                        default:
+                                printf("Key code: %d (0x%x), name: %s\n", event.key.keysym.sym, event.key.keysym.sym, SDL_GetKeyName(event.key.keysym.sym));
+                                break;
                     }
                     break;
 
@@ -287,6 +302,11 @@ int main(void) {
                     break;
 
                 case SDL_MOUSEMOTION:
+                    lastActivity = SDL_GetTicks();
+                    if (!cursorVisible) {
+                        SDL_ShowCursor(SDL_ENABLE);
+                        cursorVisible = true;
+                    }
                     if (eraserMode) {
 
                     } else {
@@ -306,9 +326,9 @@ int main(void) {
 
         ReRenderAllPoints(renderer);
         if (blinker_toggle_state()) {
-            add_user_input('_');
+            // add_user_input('_');
             RenderText(renderer, font, usr_inputs, window_width, ctrlA_pressed);
-            pop_user_input();
+            // pop_user_input();
         } else {
             RenderText(renderer, font, usr_inputs, window_width, ctrlA_pressed);
         }
